@@ -3,9 +3,9 @@
   "required": ["building", "unit", "floor", "door", "name"],
   "permission": {
     "read": true,
-    "create": "auth.role[0] == 'admin'",
-    "update": "auth.role[0] == 'admin'",
-    "delete": "auth.role[0] == 'admin'"
+    "create": true,
+    "update": true,
+    "delete": true
   },
   "properties": {
     "_id": {
@@ -36,14 +36,6 @@
     "name": {
       "bsonType": "string",
       "description": "显示名称"
-    },
-    "create_time": {
-      "bsonType": "timestamp",
-      "description": "创建时间"
-    },
-    "update_time": {
-      "bsonType": "timestamp",
-      "description": "更新时间"
     }
   }
 }

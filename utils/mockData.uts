@@ -1,0 +1,67 @@
+// 插入单个测试住户
+export async function insertTestResident() {
+	const db = uniCloud.databaseForJQL()
+
+	try {
+		const testResident = {
+			building: 2,
+			unit: 37,
+			floor: 1,
+			door: 1,
+			nickname: '测试用户',
+			phone: '13800138000',
+			openid: 'test_openid_001',
+			credit_level: 1,
+			is_super_admin: true,
+			is_unit_admin: true,
+			is_family_owner: true,
+			owner_type: 'owner'
+		}
+
+		// 按照JQL文档，直接传入对象，无需类型转换
+		const result = await db.collection('residents').add(testResident)
+		console.log('插入测试住户成功:', result)
+		return result
+	} catch (error) {
+		console.error('插入测试住户失败:', error)
+		throw error
+	}
+}
+
+// 读取单个住户
+export async function getTestResident() {
+	const db = uniCloud.databaseForJQL()
+
+	try {
+		const result = await db.collection('residents')
+			.where({ openid: 'test_openid_001' })
+			.get()
+
+		console.log('读取测试住户:', result)
+		return result.data
+	} catch (error) {
+		console.error('读取测试住户失败:', error)
+		throw error
+	}
+}
+
+// 获取用户OpenID
+export async function getUserOpenid() {
+	return new Promise((resolve, reject) => {
+		// #ifdef MP-WEIXIN
+		uni.login({
+			provider: 'weixin',
+			success: (loginRes) => {
+				resolve(loginRes.code)
+			},
+			fail: (error) => {
+				reject(error)
+			}
+		})
+		// #endif
+
+		// #ifndef MP-WEIXIN
+		resolve('test_openid_001') // 使用测试用户
+		// #endif
+	})
+}

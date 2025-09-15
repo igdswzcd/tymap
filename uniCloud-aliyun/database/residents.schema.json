@@ -3,9 +3,9 @@
   "required": ["building", "unit", "floor", "door", "openid", "nickname"],
   "permission": {
     "read": true,
-    "create": "auth.role[0] == 'admin' || doc.openid == auth.openid",
-    "update": "auth.role[0] == 'admin' || doc.openid == auth.openid",
-    "delete": "auth.role[0] == 'admin' || doc.openid == auth.openid"
+    "create": true,
+    "update": true,
+    "delete": true
   },
   "properties": {
     "_id": {
@@ -75,14 +75,6 @@
       "bsonType": "string",
       "description": "所有者类型",
       "enum": ["owner", "tenant", "family"]
-    },
-    "register_time": {
-      "bsonType": "timestamp",
-      "description": "注册时间"
-    },
-    "update_time": {
-      "bsonType": "timestamp",
-      "description": "更新时间"
     }
   }
 }

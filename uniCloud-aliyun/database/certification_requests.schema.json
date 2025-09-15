@@ -3,9 +3,9 @@
   "required": ["applicant_id", "request_type", "status"],
   "permission": {
     "read": true,
-    "create": "auth.role[0] == 'admin' || doc.applicant_id == auth.openid",
-    "update": "auth.role[0] == 'admin' || doc.reviewer_id == auth.openid",
-    "delete": "auth.role[0] == 'admin' || doc.applicant_id == auth.openid"
+    "create": true,
+    "update": true,
+    "delete": true
   },
   "properties": {
     "_id": {
@@ -38,21 +38,9 @@
       "bsonType": "string",
       "description": "审核人ID"
     },
-    "review_time": {
-      "bsonType": "timestamp",
-      "description": "审核时间"
-    },
     "review_comment": {
       "bsonType": "string",
       "description": "审核意见"
-    },
-    "create_time": {
-      "bsonType": "timestamp",
-      "description": "创建时间"
-    },
-    "update_time": {
-      "bsonType": "timestamp",
-      "description": "更新时间"
     }
   }
 }

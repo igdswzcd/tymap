@@ -3,9 +3,9 @@
   "required": ["building", "type", "name", "floors"],
   "permission": {
     "read": true,
-    "create": "auth.role[0] == 'admin'",
-    "update": "auth.role[0] == 'admin'",
-    "delete": "auth.role[0] == 'admin'"
+    "create": true,
+    "update": true,
+    "delete": true
   },
   "properties": {
     "_id": {
@@ -32,14 +32,6 @@
       "items": {
         "bsonType": "int"
       }
-    },
-    "create_time": {
-      "bsonType": "timestamp",
-      "description": "创建时间"
-    },
-    "update_time": {
-      "bsonType": "timestamp",
-      "description": "更新时间"
     }
   }
 }
