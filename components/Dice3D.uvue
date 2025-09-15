@@ -1,0 +1,238 @@
+<template>
+  <view class="box">
+    <view class="front face">
+      <view class="dot red"></view>
+    </view>
+    <view class="back face">
+      <view class="dot"></view>
+      <view class="dot"></view>
+      <view class="dot"></view>
+      <view class="dot"></view>
+      <view class="dot"></view>
+      <view class="dot"></view>
+    </view>
+    <view class="left face">
+      <view class="dot"></view>
+      <view class="dot"></view>
+    </view>
+    <view class="right face">
+      <view class="dot"></view>
+      <view class="dot"></view>
+      <view class="dot"></view>
+      <view class="dot"></view>
+      <view class="dot"></view>
+    </view>
+    <view class="top face">
+      <view class="dot"></view>
+      <view class="dot"></view>
+      <view class="dot"></view>
+    </view>
+    <view class="bottom face">
+      <view class="dot red"></view>
+      <view class="dot red"></view>
+      <view class="dot red"></view>
+      <view class="dot red"></view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+// 骰子组件，直接复制原始样式
+</script>
+
+<style>
+.box {
+  margin: 50px;
+  width: 100px;
+  height: 100px;
+  position: relative;
+  transform-style: preserve-3d;
+  transform: rotateX(45deg) rotateY(45deg);
+  overflow: visible;
+}
+.face {
+  background-color: white;
+  border-radius: 10px;
+}
+.front {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  border: 1px solid #000;
+  transform: translateZ(25px);
+}
+.back {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  border: 1px solid #000;
+  transform: translateZ(-25px);
+}
+.top {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  border: 1px solid #000;
+  transform: rotateX(90deg) translateZ(25px);
+}
+.bottom {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  border: 1px solid #000;
+  transform: rotateX(90deg) translateZ(-25px);
+}
+.left {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  transform: rotateY(90deg) translateZ(-25px);
+  border: 1px solid #000;
+}
+.right {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  transform: rotateY(90deg) translateZ(25px);
+  border: 1px solid #000;
+}
+
+.front .dot {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 17px;
+  left: 17px;
+  border-radius: 50%;
+}
+
+.dot {
+  position: absolute;
+  background-color: black;
+  border-radius: 50%;
+}
+.red {
+  background-color: red;
+}
+.back .dot {
+  width: 8px;
+  height: 8px;
+}
+.back .dot:nth-child(1) {
+  top: 8.5px;
+  left: 12.6667px;
+}
+.back .dot:nth-child(2) {
+  top: 8.5px;
+  left: 29.3333px;
+}
+.back .dot:nth-child(3) {
+  top: 21px;
+  left: 12.6667px;
+}
+.back .dot:nth-child(4) {
+  top: 21px;
+  left: 29.3333px;
+}
+.back .dot:nth-child(5) {
+  top: 33.5px;
+  left: 12.6667px;
+}
+.back .dot:nth-child(6) {
+  top: 33.5px;
+  left: 29.3333px;
+}
+
+.left .dot {
+  width: 11.2px;
+  height: 11.2px;
+}
+.left .dot:nth-child(1) {
+  top: 6.9px;
+  left: 19.4px;
+}
+.left .dot:nth-child(2) {
+  top: 31.9px;
+  left: 19.4px;
+}
+.right .dot {
+  width: 9.6px;
+  height: 9.6px;
+}
+.right .dot:nth-child(1) {
+  top: 8.5px;
+  left: 8.5px;
+}
+.right .dot:nth-child(2) {
+  top: 8.5px;
+  left: 33.5px;
+}
+.right .dot:nth-child(3) {
+  top: 33.5px;
+  left: 8.5px;
+}
+.right .dot:nth-child(4) {
+  top: 33.5px;
+  left: 33.5px;
+}
+.right .dot:nth-child(5) {
+  top: 21px;
+  left: 21px;
+}
+
+.top .dot {
+  width: 10.6667px;
+  height: 10.6667px;
+}
+.top .dot:nth-child(1) {
+  top: 8.5px;
+  left: 8.5px;
+}
+.top .dot:nth-child(2) {
+  top: 21px;
+  left: 21px;
+}
+.top .dot:nth-child(3) {
+  top: 33.5px;
+  left: 33.5px;
+}
+
+.bottom .dot {
+  width: 9.6px;
+  height: 9.6px;
+}
+.bottom .dot:nth-child(1) {
+  top: 12.6667px;
+  left: 12.6667px;
+}
+.bottom .dot:nth-child(2) {
+  top: 12.6667px;
+  left: 29.3333px;
+}
+.bottom .dot:nth-child(3) {
+  top: 29.3333px;
+  left: 12.6667px;
+}
+.bottom .dot:nth-child(4) {
+  top: 29.3333px;
+  left: 29.3333px;
+}
+
+@keyframes diceRoll {
+  0% {
+    transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+  }
+  30% {
+    transform: rotateX(120deg) rotateY(60deg) rotateZ(90deg);
+  }
+  60% {
+    transform: rotateX(240deg) rotateY(180deg) rotateZ(180deg);
+  }
+  80% {
+    transform: rotateX(300deg) rotateY(270deg) rotateZ(270deg);
+  }
+  100% {
+    transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg);
+  }
+}
+</style>

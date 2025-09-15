@@ -34,6 +34,7 @@
 								@tap="onBuildingTap(building)"
 							>
 								<text class="building-number">{{ building.building }}</text>
+								<Dice3D />
 							</view>
 						</view>
 					</view>
@@ -73,6 +74,7 @@
 								@tap="onBuildingTap(building)"
 							>
 								<text class="building-number">{{ building.building }}</text>
+								<Dice3D />
 							</view>
 						</view>
 					</view>
@@ -85,6 +87,7 @@
 <script setup lang="uts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { generateBuildings, getBuildingsByRow, getAllRows } from '@/utils/buildingData.js'
+import Dice3D from '@/components/Dice3D.uvue'
 
 // 状态管理
 const currentArea = ref<'flat' | 'villa'>('flat')
