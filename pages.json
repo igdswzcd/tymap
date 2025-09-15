@@ -3,13 +3,43 @@
 		{
 			"path": "pages/index/index",
 			"style": {
-				"navigationBarTitleText": "uni-app x"
+				"navigationBarTitleText": "小区住户管理"
+			}
+		},
+		{
+			"path": "pages/building/building",
+			"style": {
+				"navigationBarTitleText": "栋详情"
+			}
+		},
+		{
+			"path": "pages/unit/unit",
+			"style": {
+				"navigationBarTitleText": "住户详情"
+			}
+		},
+		{
+			"path": "pages/search/search",
+			"style": {
+				"navigationBarTitleText": "搜索住户"
+			}
+		},
+		{
+			"path": "pages/profile/profile",
+			"style": {
+				"navigationBarTitleText": "个人中心"
+			}
+		},
+		{
+			"path": "pages/certification/certification",
+			"style": {
+				"navigationBarTitleText": "认证申请"
 			}
 		}
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "uni-app x",
+		"navigationBarTitleText": "小区住户管理",
 		"navigationBarBackgroundColor": "#F8F8F8",
 		"backgroundColor": "#F8F8F8"
 	},

@@ -1,0 +1,601 @@
+<template>
+	<view class="container">
+		<!-- 标题 -->
+		<view class="header-section">
+			<text class="title">住户登记</text>
+			<text class="subtitle">请填写您的真实信息进行登记</text>
+		</view>
+
+		<!-- 登记表单 -->
+		<view class="form-section">
+			<view class="form-group">
+				<text class="label">姓名 *</text>
+				<input 
+					class="input" 
+					type="text" 
+					v-model="formData.nickname" 
+					placeholder="请输入您的姓名"
+					placeholder-class="placeholder"
+				/>
+			</view>
+
+			<view class="form-group">
+				<text class="label">手机号码 *</text>
+				<input 
+					class="input" 
+					type="number" 
+					v-model="formData.phone" 
+					placeholder="请输入手机号码"
+					placeholder-class="placeholder"
+					maxlength="11"
+				/>
+			</view>
+
+			<view class="form-group">
+				<text class="label">户主类型 *</text>
+				<view class="picker-group">
+					<picker 
+						@change="onOwnerTypeChange" 
+						:value="ownerTypeIndex" 
+						:range="ownerTypeOptions"
+					>
+						<view class="picker-value">
+							{{ownerTypeOptions[ownerTypeIndex]}}
+						</view>
+					</picker>
+				</view>
+			</view>
+
+			<view class="form-group">
+				<text class="label">所属栋号 *</text>
+				<view class="picker-group">
+					<picker 
+						@change="onBuildingChange" 
+						:value="buildingIndex" 
+						:range="buildingOptions"
+					>
+						<view class="picker-value">
+							{{buildingOptions[buildingIndex]}}
+						</view>
+					</picker>
+				</view>
+			</view>
+
+			<view class="form-group" v-if="selectedBuilding">
+				<text class="label">单元号 *</text>
+				<view class="picker-group">
+					<picker 
+						@change="onUnitChange" 
+						:value="unitIndex" 
+						:range="unitOptions"
+					>
+						<view class="picker-value">
+							{{unitOptions[unitIndex]}}
+						</view>
+					</picker>
+				</view>
+			</view>
+
+			<view class="form-group" v-if="selectedBuilding && selectedUnit">
+				<text class="label">楼层 *</text>
+				<view class="picker-group">
+					<picker 
+						@change="onFloorChange" 
+						:value="floorIndex" 
+						:range="floorOptions"
+					>
+						<view class="picker-value">
+							{{floorOptions[floorIndex]}}
+						</view>
+					</picker>
+				</view>
+			</view>
+
+			<view class="form-group" v-if="selectedBuilding && selectedUnit && selectedFloor">
+				<text class="label">门牌号 *</text>
+				<view class="picker-group">
+					<picker 
+						@change="onDoorChange" 
+						:value="doorIndex" 
+						:range="doorOptions"
+					>
+						<view class="picker-value">
+							{{doorOptions[doorIndex]}}
+						</view>
+					</picker>
+				</view>
+			</view>
+
+			<view class="form-group">
+				<text class="label">备注</text>
+				<textarea 
+					class="textarea" 
+					v-model="formData.remark" 
+					placeholder="请输入备注信息（选填）"
+					placeholder-class="placeholder"
+					maxlength="200"
+				></textarea>
+			</view>
+		</view>
+
+		<!-- 协议确认 -->
+		<view class="agreement-section">
+			<view class="agreement-item" @tap="toggleAgreement">
+				<view :class="['checkbox', formData.agreement ? 'checked' : '']">
+					<text v-if="formData.agreement" class="checkmark">✓</text>
+				</view>
+				<text class="agreement-text">我已阅读并同意《住户登记协议》</text>
+			</view>
+		</view>
+
+		<!-- 提交按钮 -->
+		<view class="submit-section">
+			<view 
+				:class="['submit-button', isFormValid ? 'active' : 'disabled']"
+				@tap="submitForm"
+			>
+				<text class="submit-text">提交登记</text>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script>
+interface Building {
+	building: number;
+	name: string;
+	type: 'flat' | 'villa';
+	floors: number[];
+}
+
+export default {
+	data() {
+		return {
+			buildings: [] as Building[],
+			ownerTypeOptions: ['业主', '租客', '家人'],
+			ownerTypeIndex: 0,
+			
+			buildingIndex: 0,
+			buildingOptions: [] as string[],
+			selectedBuilding: null as Building | null,
+			
+			unitIndex: 0,
+			unitOptions: [] as string[],
+			selectedUnit: 1,
+			
+			floorIndex: 0,
+			floorOptions: [] as string[],
+			selectedFloor: 1,
+			
+			doorIndex: 0,
+			doorOptions: [] as string[],
+			selectedDoor: 1,
+			
+			formData: {
+				nickname: '',
+				phone: '',
+				owner_type: 'owner',
+				building: 0,
+				unit: 0,
+				floor: 0,
+				door: 0,
+				remark: '',
+				agreement: false
+			}
+		}
+	},
+	computed: {
+		isFormValid(): boolean {
+			return this.formData.nickname.trim() !== '' &&
+				   this.formData.phone.trim() !== '' &&
+				   this.isPhoneNumberValid(this.formData.phone) &&
+				   this.selectedBuilding !== null &&
+				   this.selectedUnit > 0 &&
+				   this.selectedFloor > 0 &&
+				   this.selectedDoor > 0 &&
+				   this.formData.agreement
+		}
+	},
+	onLoad() {
+		this.loadBuildings()
+	},
+	methods: {
+		// 加载栋列表
+		async loadBuildings() {
+			try {
+				const db = uniCloud.databaseForJQL()
+				const res = await db.collection('buildings')
+					.orderBy('building', 'asc')
+					.get()
+				
+				if (res.data.length > 0) {
+					this.buildings = res.data
+					this.updateBuildingOptions()
+				} else {
+					throw new Error('暂无栋数据')
+				}
+			} catch (error) {
+				console.error('加载栋列表失败:', error)
+				// 使用Mock数据
+				this.buildings = [
+					{ building: 1, name: '1栋', type: 'flat', floors: Array.from({length: 17}, (_, i) => i + 1) },
+					{ building: 2, name: '2栋', type: 'flat', floors: Array.from({length: 16}, (_, i) => i + 1) },
+					{ building: 3, name: '3栋别墅区', type: 'villa', floors: [1, 3, 5] },
+					{ building: 4, name: '4栋', type: 'flat', floors: Array.from({length: 18}, (_, i) => i + 1) }
+				] as Building[]
+				this.updateBuildingOptions()
+			}
+		},
+
+		// 更新栋选项
+		updateBuildingOptions() {
+			this.buildingOptions = this.buildings.map(b => b.name)
+			if (this.buildings.length > 0) {
+				this.onBuildingChange({ detail: { value: 0 } })
+			}
+		},
+
+		// 户主类型变更
+		onOwnerTypeChange(e: any) {
+			this.ownerTypeIndex = e.detail.value
+			const types = ['owner', 'tenant', 'family']
+			this.formData.owner_type = types[e.detail.value]
+		},
+
+		// 栋号变更
+		onBuildingChange(e: any) {
+			this.buildingIndex = e.detail.value
+			this.selectedBuilding = this.buildings[e.detail.value]
+			this.formData.building = this.selectedBuilding.building
+			
+			this.updateUnitOptions()
+		},
+
+		// 更新单元选项
+		updateUnitOptions() {
+			if (!this.selectedBuilding) return
+			
+			const unitCount = this.selectedBuilding.type === 'flat' ? 4 : 1
+			this.unitOptions = Array.from({length: unitCount}, (_, i) => `${i + 1}单元`)
+			this.unitIndex = 0
+			this.selectedUnit = 1
+			this.formData.unit = 1
+			
+			this.updateFloorOptions()
+		},
+
+		// 单元变更
+		onUnitChange(e: any) {
+			this.unitIndex = e.detail.value
+			this.selectedUnit = e.detail.value + 1
+			this.formData.unit = this.selectedUnit
+			
+			this.updateFloorOptions()
+		},
+
+		// 更新楼层选项
+		updateFloorOptions() {
+			if (!this.selectedBuilding) return
+			
+			this.floorOptions = this.selectedBuilding.floors.map(f => `${f}层`)
+			this.floorIndex = 0
+			this.selectedFloor = this.selectedBuilding.floors[0]
+			this.formData.floor = this.selectedFloor
+			
+			this.updateDoorOptions()
+		},
+
+		// 楼层变更
+		onFloorChange(e: any) {
+			this.floorIndex = e.detail.value
+			this.selectedFloor = this.selectedBuilding.floors[e.detail.value]
+			this.formData.floor = this.selectedFloor
+			
+			this.updateDoorOptions()
+		},
+
+		// 更新门牌号选项
+		updateDoorOptions() {
+			if (!this.selectedBuilding) return
+			
+			const doorCount = this.selectedBuilding.type === 'flat' ? 2 : 1
+			this.doorOptions = Array.from({length: doorCount}, (_, i) => `${i + 1}号`)
+			this.doorIndex = 0
+			this.selectedDoor = 1
+			this.formData.door = 1
+		},
+
+		// 门牌号变更
+		onDoorChange(e: any) {
+			this.doorIndex = e.detail.value
+			this.selectedDoor = e.detail.value + 1
+			this.formData.door = this.selectedDoor
+		},
+
+		// 切换协议确认
+		toggleAgreement() {
+			this.formData.agreement = !this.formData.agreement
+		},
+
+		// 验证手机号
+		isPhoneNumberValid(phone: string): boolean {
+			return /^1[3-9]\d{9}$/.test(phone)
+		},
+
+		// 提交表单
+		async submitForm() {
+			if (!this.isFormValid) {
+				uni.showToast({
+					title: '请完善所有必填信息',
+					icon: 'none'
+				})
+				return
+			}
+
+			try {
+				uni.showLoading({
+					title: '提交中...'
+				})
+
+				const db = uniCloud.databaseForJQL()
+				
+				// 获取用户openid
+				const openid = await this.getUserOpenid()
+				
+				// 检查该位置是否已有住户
+				const existingRes = await db.collection('residents')
+					.where({
+						building: this.formData.building,
+						unit: this.formData.unit,
+						floor: this.formData.floor,
+						door: this.formData.door
+					})
+					.get()
+
+				if (existingRes.data.length > 0) {
+					uni.showToast({
+						title: '该位置已有住户登记',
+						icon: 'none'
+					})
+					return
+				}
+
+				// 提交登记信息
+				const timestamp = new Date().getTime()
+				const residentData = {
+					...this.formData,
+					openid: openid,
+					nickname: this.formData.nickname.trim(),
+					phone: this.formData.phone.trim(),
+					credit_level: 0,
+					is_super_admin: false,
+					is_unit_admin: false,
+					is_family_owner: false,
+					create_time: timestamp,
+					update_time: timestamp
+				}
+				
+				const res = await db.collection('residents').add(residentData)
+
+				if (res.id) {
+					uni.showToast({
+						title: '登记成功',
+						icon: 'success'
+					})
+					
+					// 延迟后返回
+					setTimeout(() => {
+						uni.navigateBack()
+					}, 1500)
+				} else {
+					throw new Error('提交失败')
+				}
+			} catch (error) {
+				console.error('提交失败:', error)
+				uni.showToast({
+					title: error.message || '提交失败',
+					icon: 'none'
+				})
+			} finally {
+				uni.hideLoading()
+			}
+		},
+
+		// 获取用户openid
+		async getUserOpenid(): Promise<string> {
+			return new Promise((resolve, reject) => {
+				// #ifdef MP-WEIXIN
+				uni.login({
+					provider: 'weixin',
+					success: (loginRes) => {
+						resolve(loginRes.code)
+					},
+					fail: (error) => {
+						reject(error)
+					}
+				})
+				// #endif
+				
+				// #ifndef MP-WEIXIN
+				resolve('mock_openid_' + Date.now())
+				// #endif
+			})
+		}
+	}
+}
+</script>
+
+<style>
+.container {
+	padding: 20rpx;
+	background-color: #f5f5f5;
+	min-height: 100vh;
+}
+
+.header-section {
+	background: white;
+	border-radius: 15rpx;
+	padding: 30rpx;
+	margin-bottom: 30rpx;
+	text-align: center;
+	box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+.title {
+	display: block;
+	font-size: 36rpx;
+	font-weight: bold;
+	color: #333;
+	margin-bottom: 10rpx;
+}
+
+.subtitle {
+	font-size: 24rpx;
+	color: #666;
+}
+
+.form-section {
+	background: white;
+	border-radius: 15rpx;
+	padding: 30rpx;
+	margin-bottom: 30rpx;
+	box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+.form-group {
+	margin-bottom: 30rpx;
+}
+
+.form-group:last-child {
+	margin-bottom: 0;
+}
+
+.label {
+	display: block;
+	font-size: 28rpx;
+	color: #333;
+	margin-bottom: 15rpx;
+	font-weight: 500;
+}
+
+.input {
+	width: 100%;
+	height: 80rpx;
+	border: 2rpx solid #e0e0e0;
+	border-radius: 10rpx;
+	padding: 0 20rpx;
+	font-size: 28rpx;
+	background: #fafafa;
+}
+
+.input:focus {
+	border-color: #2196f3;
+	background: white;
+}
+
+.textarea {
+	width: 100%;
+	height: 120rpx;
+	border: 2rpx solid #e0e0e0;
+	border-radius: 10rpx;
+	padding: 15rpx;
+	font-size: 28rpx;
+	background: #fafafa;
+}
+
+.textarea:focus {
+	border-color: #2196f3;
+	background: white;
+}
+
+.picker-group {
+	width: 100%;
+	height: 80rpx;
+	border: 2rpx solid #e0e0e0;
+	border-radius: 10rpx;
+	padding: 0 20rpx;
+	background: #fafafa;
+	display: flex;
+	align-items: center;
+}
+
+.picker-value {
+	font-size: 28rpx;
+	color: #333;
+	flex: 1;
+}
+
+.agreement-section {
+	background: white;
+	border-radius: 15rpx;
+	padding: 30rpx;
+	margin-bottom: 30rpx;
+	box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+.agreement-item {
+	display: flex;
+	align-items: center;
+}
+
+.checkbox {
+	width: 40rpx;
+	height: 40rpx;
+	border: 2rpx solid #e0e0e0;
+	border-radius: 8rpx;
+	margin-right: 15rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: #fafafa;
+}
+
+.checkbox.checked {
+	background: #2196f3;
+	border-color: #2196f3;
+}
+
+.checkmark {
+	color: white;
+	font-size: 24rpx;
+	font-weight: bold;
+}
+
+.agreement-text {
+	font-size: 28rpx;
+	color: #333;
+	flex: 1;
+}
+
+.submit-section {
+	margin-top: 40rpx;
+}
+
+.submit-button {
+	width: 100%;
+	height: 90rpx;
+	border-radius: 45rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: all 0.3s ease;
+}
+
+.submit-button.active {
+	background: #2196f3;
+}
+
+.submit-button.disabled {
+	background: #ccc;
+}
+
+.submit-text {
+	color: white;
+	font-size: 32rpx;
+	font-weight: bold;
+}
+
+.placeholder {
+	color: #999;
+}
+</style>

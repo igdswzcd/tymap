@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:doc.dcloud.net.cn)",
+      "Read(//d/sakana/uniapp/ty-map/uniCloud-aliyun/cloudfunctions/**)",
+      "Read(//d/sakana/uniapp/ty-map/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

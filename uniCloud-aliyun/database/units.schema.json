@@ -1,0 +1,49 @@
+{
+  "bsonType": "object",
+  "required": ["building", "unit", "floor", "door", "name"],
+  "permission": {
+    "read": true,
+    "create": "auth.role[0] == 'admin'",
+    "update": "auth.role[0] == 'admin'",
+    "delete": "auth.role[0] == 'admin'"
+  },
+  "properties": {
+    "_id": {
+      "bsonType": "string",
+      "description": "ID，系统自动生成"
+    },
+    "building": {
+      "bsonType": "int",
+      "description": "栋号",
+      "minimum": 1
+    },
+    "unit": {
+      "bsonType": "int",
+      "description": "单元号",
+      "minimum": 1
+    },
+    "floor": {
+      "bsonType": "int",
+      "description": "楼层",
+      "minimum": 1
+    },
+    "door": {
+      "bsonType": "int",
+      "description": "门牌号：1或2",
+      "minimum": 1,
+      "maximum": 2
+    },
+    "name": {
+      "bsonType": "string",
+      "description": "显示名称"
+    },
+    "create_time": {
+      "bsonType": "timestamp",
+      "description": "创建时间"
+    },
+    "update_time": {
+      "bsonType": "timestamp",
+      "description": "更新时间"
+    }
+  }
+}

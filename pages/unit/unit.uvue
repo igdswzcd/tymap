@@ -1,0 +1,377 @@
+<template>
+	<view class="container">
+		<!-- 栋信息头部 -->
+		<view class="header-section">
+			<view class="building-info">
+				<text class="building-name">{{buildingName}}</text>
+				<text :class="['building-type', buildingType]">
+					{{buildingType === 'flat' ? '平层' : '别墅'}}
+				</text>
+			</view>
+			<view class="location-info">
+				<text class="location">{{unitNumber}}单元 {{floorNumber}}层</text>
+			</view>
+		</view>
+
+		<!-- 单元详情 -->
+		<view class="unit-section">
+			<view class="unit-detail">
+				<view class="detail-item">
+					<text class="label">单元号</text>
+					<text class="value">{{unitNumber}}单元</text>
+				</view>
+				<view class="detail-item">
+					<text class="label">楼层</text>
+					<text class="value">{{floorNumber}}层</text>
+				</view>
+				<view class="detail-item">
+					<text class="label">总户数</text>
+					<text class="value">{{doorList.length}}户</text>
+				</view>
+			</view>
+		</view>
+
+		<!-- 住户列表 -->
+		<view class="residents-section">
+			<view class="section-title">住户信息</view>
+			<view class="door-grid">
+				<view 
+					class="door-card" 
+					v-for="door in doorList" 
+					:key="door.door"
+					@tap="goToResident(door)"
+				>
+					<view class="door-header">
+						<text class="door-number">{{door.door}}号</text>
+						<text :class="['status', door.resident ? 'occupied' : 'empty']">
+							{{door.resident ? '已入住' : '空置'}}
+						</text>
+					</view>
+					<view class="door-info" v-if="door.resident">
+						<text class="resident-name">{{door.resident.nickname}}</text>
+						<text class="resident-phone">{{door.resident.phone || '未登记手机'}}</text>
+					</view>
+					<view class="door-info" v-else>
+						<text class="empty-text">暂无住户</text>
+					</view>
+				</view>
+			</view>
+		</view>
+
+		<!-- 操作按钮 -->
+		<view class="action-section">
+			<view class="action-button" @tap="goBack">
+				<text class="action-text">返回</text>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script lang="ts">
+import { defineComponent, ref, reactive, onMounted, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { initializeMockData } from '@/utils/mockData'
+
+interface Door {
+	door: number
+	resident: any | null
+}
+
+export default defineComponent({
+	name: 'UnitPage',
+	setup() {
+		const buildingNumber = ref(0)
+		const buildingName = ref('')
+		const buildingType = ref<'flat' | 'villa'>('flat')
+		const unitNumber = ref(0)
+		const floorNumber = ref(0)
+		const doorList = ref<Door[]>([])
+
+		// 加载单元数据
+		const loadUnitData = async () => {
+			try {
+				const db = uniCloud.databaseForJQL()
+				
+				const res = await db.collection('residents')
+					.where({
+						building: buildingNumber.value,
+						unit: unitNumber.value,
+						floor: floorNumber.value
+					})
+					.get()
+				
+				const residents = res.data || []
+				generateDoorList(residents)
+			} catch (error) {
+				console.error('加载单元数据失败:', error)
+				generateMockDoorList()
+			}
+		}
+
+		// 生成门牌号列表
+		const generateDoorList = (residents = []) => {
+			const doorCount = buildingType.value === 'flat' ? 2 : 1
+			const doorListData: Door[] = []
+			
+			for (let i = 1; i <= doorCount; i++) {
+				const resident = residents.find(r => r.door === i)
+				doorListData.push({
+					door: i,
+					resident: resident || null
+				})
+			}
+			
+			doorList.value = doorListData
+		}
+
+		// 生成Mock门牌号列表
+		const generateMockDoorList = () => {
+			const doorCount = buildingType.value === 'flat' ? 2 : 1
+			const doorListData: Door[] = []
+			
+			for (let i = 1; i <= doorCount; i++) {
+				if (i === 1) {
+					doorListData.push({
+						door: i,
+						resident: {
+							_id: 'mock_resident_001',
+							nickname: '张三',
+							phone: '13800138000',
+							credit_level: 1
+						}
+					})
+				} else {
+					doorListData.push({
+						door: i,
+						resident: null
+					})
+				}
+			}
+			
+			doorList.value = doorListData
+		}
+
+		// 跳转到住户详情
+		const goToResident = (door: Door) => {
+			if (!door.resident) {
+				uni.showToast({
+					title: '暂无住户信息',
+					icon: 'none'
+				})
+				return
+			}
+
+			uni.navigateTo({
+				url: `/pages/resident/resident?id=${door.resident._id}&building=${buildingNumber.value}&unit=${unitNumber.value}&floor=${floorNumber.value}&door=${door.door}`
+			})
+		}
+
+		// 返回
+		const goBack = () => {
+			uni.navigateBack()
+		}
+
+		// 页面加载
+		onLoad(async (options) => {
+			buildingNumber.value = parseInt(options.building || '0')
+			buildingName.value = options.name || ''
+			buildingType.value = options.type || 'flat'
+			unitNumber.value = parseInt(options.unit || '0')
+			floorNumber.value = parseInt(options.floor || '0')
+			
+			await initializeMockData()
+			loadUnitData()
+		})
+
+		return {
+			buildingNumber,
+			buildingName,
+			buildingType,
+			unitNumber,
+			floorNumber,
+			doorList,
+			goToResident,
+			goBack
+		}
+	}
+})
+</script>
+
+<style>
+.container {
+	padding: 20rpx;
+	background-color: #f5f5f5;
+	min-height: 100vh;
+}
+
+.header-section {
+	background: white;
+	border-radius: 15rpx;
+	padding: 30rpx;
+	margin-bottom: 20rpx;
+	box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+.building-info {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 20rpx;
+}
+
+.building-name {
+	font-size: 36rpx;
+	font-weight: bold;
+	color: #333;
+}
+
+.building-type {
+	font-size: 20rpx;
+	padding: 5rpx 10rpx;
+	border-radius: 10rpx;
+}
+
+.building-type.flat {
+	background: #e3f2fd;
+	color: #1976d2;
+}
+
+.building-type.villa {
+	background: #f3e5f5;
+	color: #7b1fa2;
+}
+
+.location-info {
+	margin-top: 10rpx;
+}
+
+.location {
+	font-size: 28rpx;
+	color: #666;
+}
+
+.unit-section {
+	background: white;
+	border-radius: 15rpx;
+	padding: 30rpx;
+	margin-bottom: 20rpx;
+	box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+.unit-detail {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.detail-item {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.label {
+	font-size: 24rpx;
+	color: #666;
+	margin-bottom: 10rpx;
+}
+
+.value {
+	font-size: 32rpx;
+	font-weight: bold;
+	color: #333;
+}
+
+.residents-section {
+	margin-bottom: 20rpx;
+}
+
+.section-title {
+	font-size: 32rpx;
+	font-weight: bold;
+	margin-bottom: 20rpx;
+	color: #333;
+}
+
+.door-grid {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 20rpx;
+}
+
+.door-card {
+	background: white;
+	border-radius: 15rpx;
+	padding: 30rpx;
+	box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+.door-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 20rpx;
+}
+
+.door-number {
+	font-size: 32rpx;
+	font-weight: bold;
+	color: #333;
+}
+
+.status {
+	font-size: 20rpx;
+	padding: 5rpx 10rpx;
+	border-radius: 10rpx;
+}
+
+.status.occupied {
+	background: #e8f5e8;
+	color: #4caf50;
+}
+
+.status.empty {
+	background: #ffeaa7;
+	color: #f39c12;
+}
+
+.door-info {
+	display: flex;
+	flex-direction: column;
+}
+
+.resident-name {
+	font-size: 28rpx;
+	font-weight: bold;
+	color: #333;
+	margin-bottom: 5rpx;
+}
+
+.resident-phone {
+	font-size: 24rpx;
+	color: #666;
+}
+
+.empty-text {
+	font-size: 24rpx;
+	color: #999;
+	font-style: italic;
+}
+
+.action-section {
+	margin-top: 40rpx;
+}
+
+.action-button {
+	background: #2196f3;
+	border-radius: 25rpx;
+	padding: 20rpx;
+	text-align: center;
+}
+
+.action-text {
+	color: white;
+	font-size: 28rpx;
+	font-weight: bold;
+}
+</style>

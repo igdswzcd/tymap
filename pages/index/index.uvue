@@ -1,36 +1,478 @@
 <template>
-	<view>
-		<image class="logo" src="/static/logo.png"></image>
-		<text class="title">{{title}}</text>
+	<view class="container">
+		<!-- 顶部统计信息 -->
+		<view class="stats-section">
+			<view class="stat-card">
+				<text class="stat-number">{{statistics.totalResidents || 0}}</text>
+				<text class="stat-label">总住户数</text>
+			</view>
+			<view class="stat-card">
+				<text class="stat-number">{{statistics.totalBuildings || 0}}</text>
+				<text class="stat-label">总栋数</text>
+			</view>
+			<view class="stat-card">
+				<text class="stat-number">{{statistics.occupancyRate || 0}}%</text>
+				<text class="stat-label">入住率</text>
+			</view>
+		</view>
+
+		<!-- 搜索框 -->
+		<view class="search-section">
+			<view class="search-box" @tap="goToSearch">
+				<text class="search-icon">🔍</text>
+				<text class="search-placeholder">搜索住户姓名、手机号</text>
+			</view>
+		</view>
+
+		<!-- 栋列表 -->
+		<view class="buildings-section">
+			<view class="section-title">小区栋号</view>
+			<view class="buildings-grid">
+				<view 
+					class="building-card" 
+					v-for="building in buildings" 
+					:key="building.building"
+					@tap="goToBuilding(building)"
+				>
+					<view class="building-header">
+						<text class="building-name">{{building.name}}</text>
+						<text :class="['building-type', building.type]">
+							{{building.type === 'flat' ? '平层' : '别墅'}}
+						</text>
+					</view>
+					<view class="building-info">
+						<text class="building-floors">{{building.floors.length}}层</text>
+						<text class="building-residents">{{getBuildingResidents(building.building)}}户</text>
+					</view>
+				</view>
+			</view>
+		</view>
+
+		<!-- 快捷操作 -->
+		<view class="quick-actions">
+			<view class="action-title">快捷操作</view>
+			<view class="action-grid">
+				<view class="action-item" @tap="goToRegistration" v-if="!isRegistered">
+					<text class="action-icon">🏠</text>
+					<text class="action-text">住户登记</text>
+				</view>
+				<view class="action-item" @tap="goToCertification" v-if="isRegistered && !hasHighCredit">
+					<text class="action-icon">✅</text>
+					<text class="action-text">申请认证</text>
+				</view>
+				<view class="action-item" @tap="goToMyApplications">
+					<text class="action-icon">📋</text>
+					<text class="action-text">我的申请</text>
+				</view>
+				<view class="action-item" @tap="goToAdminPanel" v-if="isAdmin">
+					<text class="action-icon">⚙️</text>
+					<text class="action-text">管理面板</text>
+				</view>
+			</view>
+		</view>
 	</view>
 </template>
 
-<script>
-	export default {
-		data() {
-			return {
-				title: 'Hello'
+<script lang="ts">
+import { defineComponent, ref, reactive, onMounted, computed } from 'vue'
+import { initializeMockData, getUserOpenid } from '@/utils/mockData'
+
+interface Building {
+	building: number
+	type: 'flat' | 'villa'
+	name: string
+	floors: number[]
+}
+
+interface Statistics {
+	totalResidents: number
+	totalBuildings: number
+	occupancyRate: number
+}
+
+interface UserInfo {
+	_id: string
+	openid: string
+	nickname: string
+	avatar?: string
+	phone?: string
+	credit_level: number
+	is_super_admin: boolean
+	is_unit_admin: boolean
+	is_family_owner: boolean
+	owner_type: string
+}
+
+export default defineComponent({
+	name: 'HomePage',
+	setup() {
+		const buildings = ref<Building[]>([])
+		const statistics = reactive<Statistics>({
+			totalResidents: 0,
+			totalBuildings: 0,
+			occupancyRate: 0
+		})
+		const userInfo = ref<UserInfo | null>(null)
+		const isRegistered = ref(false)
+		const hasHighCredit = ref(false)
+		const isAdmin = ref(false)
+		const buildingResidentsCount = ref<Record<number, number>>({})
+
+		// 计算入住率
+		const calculateOccupancyRate = (residentCount: number) => {
+			const totalUnits = buildings.value.reduce((total, building) => {
+				if (building.type === 'flat') {
+					return total + (building.floors.length * 4 * 2) // 4单元*2户
+				} else {
+					return total + building.floors.length // 别墅每层1户
+				}
+			}, 0)
+			
+			return totalUnits > 0 ? Math.round((residentCount / totalUnits) * 100) : 0
+		}
+
+		// 获取栋的住户数量
+		const getBuildingResidents = (buildingNumber: number) => {
+			return buildingResidentsCount.value[buildingNumber] || 0
+		}
+
+		// 加载栋列表
+		const loadBuildings = async () => {
+			try {
+				const db = uniCloud.databaseForJQL()
+				const res = await db.collection('buildings')
+					.orderBy('building', 'asc')
+					.get()
+				
+				buildings.value = res.data as Building[]
+				loadBuildingResidentsCount()
+			} catch (error) {
+				console.error('加载栋列表失败:', error)
 			}
-		},
-		onLoad() {
+		}
 
-		},
-		methods: {
+		// 加载统计数据
+		const loadStatistics = async () => {
+			try {
+				const db = uniCloud.databaseForJQL()
+				
+				// 总住户数
+				const totalRes = await db.collection('residents').count()
+				
+				// 各栋住户数量
+				const buildingRes = await db.collection('residents')
+					.groupBy('building')
+					.groupField('count(*) as count')
+					.get()
+				
+				statistics.totalResidents = totalRes.total || 0
+				statistics.totalBuildings = buildings.value.length
+				statistics.occupancyRate = calculateOccupancyRate(totalRes.total || 0)
+				
+				// 更新栋住户数量
+				const countMap: Record<number, number> = {}
+				buildingRes.data.forEach((item: any) => {
+					countMap[item.building] = item.count
+				})
+				buildingResidentsCount.value = countMap
+			} catch (error) {
+				console.error('加载统计数据失败:', error)
+			}
+		}
 
+		// 加载用户信息
+		const loadUserInfo = async () => {
+			try {
+				const openid = await getUserOpenid()
+				
+				const db = uniCloud.databaseForJQL()
+				const res = await db.collection('residents')
+					.where({
+						openid: openid
+					})
+					.get()
+				
+				if (res.data && res.data.length > 0) {
+					const userData = res.data[0]
+					userInfo.value = userData
+					isRegistered.value = true
+					hasHighCredit.value = userData.credit_level > 0
+					isAdmin.value = userData.is_super_admin || userData.is_unit_admin
+				}
+			} catch (error) {
+				console.error('加载用户信息失败:', error)
+			}
+		}
+
+		// 加载各栋住户数量
+		const loadBuildingResidentsCount = async () => {
+			try {
+				const db = uniCloud.databaseForJQL()
+				const buildingRes = await db.collection('residents')
+					.groupBy('building')
+					.groupField('count(*) as count')
+					.get()
+				
+				const countMap: Record<number, number> = {}
+				buildingRes.data.forEach((item: any) => {
+					countMap[item.building] = item.count
+				})
+				buildingResidentsCount.value = countMap
+			} catch (error) {
+				console.error('加载栋住户数量失败:', error)
+			}
+		}
+
+		// 统一加载数据
+		const loadData = async () => {
+			await initializeMockData()
+			loadBuildings()
+			loadStatistics()
+			loadUserInfo()
+		}
+
+		// 跳转到栋详情
+		const goToBuilding = (building: Building) => {
+			uni.navigateTo({
+				url: `/pages/building/building?building=${building.building}&name=${building.name}&type=${building.type}`
+			})
+		}
+
+		// 跳转到搜索页面
+		const goToSearch = () => {
+			uni.navigateTo({
+				url: '/pages/search/search'
+			})
+		}
+
+		// 跳转到住户登记
+		const goToRegistration = () => {
+			uni.navigateTo({
+				url: '/pages/registration/registration'
+			})
+		}
+
+		// 跳转到认证申请
+		const goToCertification = () => {
+			uni.navigateTo({
+				url: '/pages/certification/certification'
+			})
+		}
+
+		// 跳转到我的申请
+		const goToMyApplications = () => {
+			if (!isRegistered.value) {
+				uni.showToast({
+					title: '请先完成住户登记',
+					icon: 'none'
+				})
+				return
+			}
+			
+			uni.navigateTo({
+				url: '/pages/certification/certification?type=my'
+			})
+		}
+
+		// 跳转到管理面板
+		const goToAdminPanel = () => {
+			if (!isAdmin.value) {
+				uni.showToast({
+					title: '权限不足',
+					icon: 'none'
+				})
+				return
+			}
+			
+			uni.navigateTo({
+				url: '/pages/admin/admin'
+			})
+		}
+
+		onMounted(() => {
+			loadData()
+		})
+
+		return {
+			buildings,
+			statistics,
+			userInfo,
+			isRegistered,
+			hasHighCredit,
+			isAdmin,
+			buildingResidentsCount,
+			getBuildingResidents,
+			goToBuilding,
+			goToSearch,
+			goToRegistration,
+			goToCertification,
+			goToMyApplications,
+			goToAdminPanel
 		}
 	}
+})
 </script>
 
 <style>
-	.logo {
-		height: 100px;
-		width: 100px;
-		margin: 100px auto 25px auto;
-	}
+.container {
+	padding: 20rpx;
+	background-color: #f5f5f5;
+	min-height: 100vh;
+}
 
-	.title {
-		font-size: 18px;
-		color: #8f8f94;
-    text-align: center;
-	}
+.stats-section {
+	display: flex;
+	justify-content: space-between;
+	margin-bottom: 30rpx;
+}
+
+.stat-card {
+	flex: 1;
+	margin: 0 10rpx;
+	background: white;
+	border-radius: 15rpx;
+	padding: 30rpx 20rpx;
+	text-align: center;
+	box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+.stat-card:first-child {
+	margin-left: 0;
+}
+
+.stat-card:last-child {
+	margin-right: 0;
+}
+
+.stat-number {
+	display: block;
+	font-size: 36rpx;
+	font-weight: bold;
+	color: #3cc51f;
+	margin-bottom: 10rpx;
+}
+
+.stat-label {
+	font-size: 24rpx;
+	color: #666;
+}
+
+.search-section {
+	margin-bottom: 30rpx;
+}
+
+.search-box {
+	background: white;
+	border-radius: 25rpx;
+	padding: 20rpx 30rpx;
+	display: flex;
+	align-items: center;
+	box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+.search-icon {
+	font-size: 32rpx;
+	margin-right: 20rpx;
+}
+
+.search-placeholder {
+	font-size: 28rpx;
+	color: #999;
+}
+
+.buildings-section {
+	margin-bottom: 30rpx;
+}
+
+.section-title {
+	font-size: 32rpx;
+	font-weight: bold;
+	margin-bottom: 20rpx;
+	color: #333;
+}
+
+.buildings-grid {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 20rpx;
+}
+
+.building-card {
+	background: white;
+	border-radius: 15rpx;
+	padding: 30rpx;
+	box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+.building-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 20rpx;
+}
+
+.building-name {
+	font-size: 32rpx;
+	font-weight: bold;
+	color: #333;
+}
+
+.building-type {
+	font-size: 20rpx;
+	padding: 5rpx 10rpx;
+	border-radius: 10rpx;
+}
+
+.building-type.flat {
+	background: #e3f2fd;
+	color: #1976d2;
+}
+
+.building-type.villa {
+	background: #f3e5f5;
+	color: #7b1fa2;
+}
+
+.building-info {
+	display: flex;
+	justify-content: space-between;
+	font-size: 24rpx;
+	color: #666;
+}
+
+.quick-actions {
+	margin-bottom: 30rpx;
+}
+
+.action-title {
+	font-size: 32rpx;
+	font-weight: bold;
+	margin-bottom: 20rpx;
+	color: #333;
+}
+
+.action-grid {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 20rpx;
+}
+
+.action-item {
+	background: white;
+	border-radius: 15rpx;
+	padding: 30rpx 20rpx;
+	text-align: center;
+	box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+.action-icon {
+	display: block;
+	font-size: 40rpx;
+	margin-bottom: 10rpx;
+}
+
+.action-text {
+	font-size: 24rpx;
+	color: #333;
+}
 </style>

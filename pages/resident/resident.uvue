@@ -1,0 +1,425 @@
+<template>
+	<view class="container">
+		<!-- 住户信息头部 -->
+		<view class="header-section">
+			<view class="resident-info">
+				<view class="avatar-section">
+					<image class="avatar" :src="resident.avatar || '/static/default-avatar.png'" mode="aspectFill"></image>
+					<text :class="['credit-level', 'level-' + resident.credit_level]">
+						信用等级: {{resident.credit_level}}
+					</text>
+				</view>
+				<view class="basic-info">
+					<text class="resident-name">{{resident.nickname}}</text>
+					<text class="resident-phone">{{resident.phone || '未登记手机号'}}</text>
+					<text class="location-info">{{buildingName}} {{unitNumber}}单元 {{floorNumber}}层 {{doorNumber}}号</text>
+				</view>
+			</view>
+		</view>
+
+		<!-- 详细信息 -->
+		<view class="details-section">
+			<view class="section-title">详细信息</view>
+			<view class="detail-card">
+				<view class="detail-item">
+					<text class="label">用户ID</text>
+					<text class="value">{{resident._id}}</text>
+				</view>
+				<view class="detail-item">
+					<text class="label">OpenID</text>
+					<text class="value">{{resident.openid}}</text>
+				</view>
+				<view class="detail-item">
+					<text class="label">户主类型</text>
+					<text class="value">{{getOwnerTypeText(resident.owner_type)}}</text>
+				</view>
+				<view class="detail-item">
+					<text class="label">登记时间</text>
+					<text class="value">{{formatTime(resident.create_time)}}</text>
+				</view>
+			</view>
+		</view>
+
+		<!-- 权限信息 -->
+		<view class="permissions-section">
+			<view class="section-title">权限信息</view>
+			<view class="permission-grid">
+				<view class="permission-item">
+					<text class="permission-label">家庭户主</text>
+					<text :class="['permission-value', resident.is_family_owner ? 'granted' : 'denied']">
+						{{resident.is_family_owner ? '是' : '否'}}
+					</text>
+				</view>
+				<view class="permission-item">
+					<text class="permission-label">单元管理员</text>
+					<text :class="['permission-value', resident.is_unit_admin ? 'granted' : 'denied']">
+						{{resident.is_unit_admin ? '是' : '否'}}
+					</text>
+				</view>
+				<view class="permission-item">
+					<text class="permission-label">超级管理员</text>
+					<text :class="['permission-value', resident.is_super_admin ? 'granted' : 'denied']">
+						{{resident.is_super_admin ? '是' : '否'}}
+					</text>
+				</view>
+			</view>
+		</view>
+
+		<!-- 操作按钮 -->
+		<view class="action-section">
+			<view class="action-button" @tap="goBack">
+				<text class="action-text">返回</text>
+			</view>
+			<view class="action-button secondary" @tap="contactResident" v-if="resident.phone">
+				<text class="action-text">联系住户</text>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script lang="ts">
+import { defineComponent, ref, reactive, onMounted, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { initializeMockData } from '@/utils/mockData'
+
+interface Resident {
+	_id: string
+	openid: string
+	nickname: string
+	avatar?: string
+	phone?: string
+	credit_level: number
+	is_super_admin: boolean
+	is_unit_admin: boolean
+	is_family_owner: boolean
+	owner_type: string
+	create_time: number
+}
+
+export default defineComponent({
+	name: 'ResidentPage',
+	setup() {
+		const residentId = ref('')
+		const buildingNumber = ref(0)
+		const buildingName = ref('')
+		const unitNumber = ref(0)
+		const floorNumber = ref(0)
+		const doorNumber = ref(0)
+		const resident = reactive<Resident>({
+			_id: '',
+			openid: '',
+			nickname: '',
+			credit_level: 0,
+			is_super_admin: false,
+			is_unit_admin: false,
+			is_family_owner: false,
+			owner_type: '',
+			create_time: 0
+		})
+
+		// 加载住户数据
+		const loadResidentData = async () => {
+			try {
+				if (residentId.value) {
+					const db = uniCloud.databaseForJQL()
+					const res = await db.collection('residents')
+						.doc(residentId.value)
+						.get()
+					
+					if (res.data && res.data.length > 0) {
+						const residentData = res.data[0]
+						Object.assign(resident, residentData)
+					} else {
+						throw new Error('住户不存在')
+					}
+				} else {
+					// 使用Mock数据
+					loadMockResidentData()
+				}
+			} catch (error) {
+				console.error('加载住户数据失败:', error)
+				loadMockResidentData()
+			}
+		}
+
+		// 加载Mock住户数据
+		const loadMockResidentData = () => {
+			Object.assign(resident, {
+				_id: 'mock_resident_001',
+				openid: 'mock_openid_001',
+				nickname: '张三',
+				avatar: 'https://randomuser.me/api/portraits/men/1.jpg',
+				phone: '13800138000',
+				credit_level: 1,
+				is_super_admin: false,
+				is_unit_admin: false,
+				is_family_owner: true,
+				owner_type: 'owner',
+				create_time: Date.now() - 86400000 // 1天前
+			})
+		}
+
+		// 获取户主类型文本
+		const getOwnerTypeText = (type: string): string => {
+			switch (type) {
+				case 'owner': return '业主'
+				case 'tenant': return '租客'
+				case 'family': return '家人'
+				default: return '未知'
+			}
+		}
+
+		// 格式化时间
+		const formatTime = (timestamp: number): string => {
+			if (!timestamp) return '未知'
+			const date = new Date(timestamp)
+			return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+		}
+
+		// 联系住户
+		const contactResident = () => {
+			if (!resident.phone) {
+				uni.showToast({
+					title: '暂无联系方式',
+					icon: 'none'
+				})
+				return
+			}
+
+			uni.showModal({
+				title: '联系住户',
+				content: `确定要拨打 ${resident.phone} 吗？`,
+				success: (res) => {
+					if (res.confirm) {
+						// 在小程序中调用拨号功能
+						uni.makePhoneCall({
+							phoneNumber: resident.phone,
+							fail: () => {
+								uni.showToast({
+									title: '拨号失败',
+									icon: 'none'
+								})
+							}
+						})
+					}
+				}
+			})
+		}
+
+		// 返回
+		const goBack = () => {
+			uni.navigateBack()
+		}
+
+		// 页面加载
+		onLoad(async (options) => {
+			residentId.value = options.id || ''
+			buildingNumber.value = parseInt(options.building || '0')
+			buildingName.value = options.name || ''
+			unitNumber.value = parseInt(options.unit || '0')
+			floorNumber.value = parseInt(options.floor || '0')
+			doorNumber.value = parseInt(options.door || '0')
+			
+			await initializeMockData()
+			loadResidentData()
+		})
+
+		return {
+			residentId,
+			buildingNumber,
+			buildingName,
+			unitNumber,
+			floorNumber,
+			doorNumber,
+			resident,
+			getOwnerTypeText,
+			formatTime,
+			contactResident,
+			goBack
+		}
+	}
+})
+</script>
+
+<style>
+.container {
+	padding: 20rpx;
+	background-color: #f5f5f5;
+	min-height: 100vh;
+}
+
+.header-section {
+	background: white;
+	border-radius: 15rpx;
+	padding: 30rpx;
+	margin-bottom: 20rpx;
+	box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+.resident-info {
+	display: flex;
+	align-items: center;
+}
+
+.avatar-section {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	margin-right: 30rpx;
+}
+
+.avatar {
+	width: 120rpx;
+	height: 120rpx;
+	border-radius: 60rpx;
+	margin-bottom: 10rpx;
+}
+
+.credit-level {
+	font-size: 20rpx;
+	padding: 5rpx 10rpx;
+	border-radius: 10rpx;
+	text-align: center;
+}
+
+.credit-level.level-0 {
+	background: #ffeaa7;
+	color: #f39c12;
+}
+
+.credit-level.level-1 {
+	background: #a8e6cf;
+	color: #27ae60;
+}
+
+.credit-level.level-2 {
+	background: #74b9ff;
+	color: #0984e3;
+}
+
+.basic-info {
+	flex: 1;
+}
+
+.resident-name {
+	display: block;
+	font-size: 36rpx;
+	font-weight: bold;
+	color: #333;
+	margin-bottom: 10rpx;
+}
+
+.resident-phone {
+	display: block;
+	font-size: 28rpx;
+	color: #666;
+	margin-bottom: 10rpx;
+}
+
+.location-info {
+	font-size: 24rpx;
+	color: #999;
+}
+
+.details-section {
+	margin-bottom: 20rpx;
+}
+
+.section-title {
+	font-size: 32rpx;
+	font-weight: bold;
+	margin-bottom: 20rpx;
+	color: #333;
+}
+
+.detail-card {
+	background: white;
+	border-radius: 15rpx;
+	padding: 30rpx;
+	box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+.detail-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 20rpx;
+}
+
+.detail-item:last-child {
+	margin-bottom: 0;
+}
+
+.label {
+	font-size: 28rpx;
+	color: #666;
+}
+
+.value {
+	font-size: 28rpx;
+	color: #333;
+	font-weight: 500;
+}
+
+.permissions-section {
+	margin-bottom: 20rpx;
+}
+
+.permission-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 20rpx;
+}
+
+.permission-item {
+	background: white;
+	border-radius: 15rpx;
+	padding: 20rpx;
+	text-align: center;
+	box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+.permission-label {
+	display: block;
+	font-size: 24rpx;
+	color: #666;
+	margin-bottom: 10rpx;
+}
+
+.permission-value {
+	font-size: 28rpx;
+	font-weight: bold;
+}
+
+.permission-value.granted {
+	color: #4caf50;
+}
+
+.permission-value.denied {
+	color: #f44336;
+}
+
+.action-section {
+	margin-top: 40rpx;
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 20rpx;
+}
+
+.action-button {
+	background: #2196f3;
+	border-radius: 25rpx;
+	padding: 20rpx;
+	text-align: center;
+}
+
+.action-button.secondary {
+	background: #4caf50;
+}
+
+.action-text {
+	color: white;
+	font-size: 28rpx;
+	font-weight: bold;
+}
+</style>

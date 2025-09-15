@@ -1,0 +1,77 @@
+{
+  "indexes": [
+    {
+      "collection": "buildings",
+      "unique": true,
+      "keys": {
+        "building": 1
+      },
+      "name": "building_unique"
+    },
+    {
+      "collection": "units", 
+      "unique": true,
+      "keys": {
+        "building": 1,
+        "unit": 1,
+        "floor": 1,
+        "door": 1
+      },
+      "name": "unit_location_unique"
+    },
+    {
+      "collection": "residents",
+      "unique": true,
+      "keys": {
+        "openid": 1
+      },
+      "name": "openid_unique"
+    },
+    {
+      "collection": "residents",
+      "keys": {
+        "building": 1,
+        "unit": 1,
+        "floor": 1,
+        "door": 1
+      },
+      "name": "resident_location"
+    },
+    {
+      "collection": "residents",
+      "keys": {
+        "credit_level": 1
+      },
+      "name": "credit_level_index"
+    },
+    {
+      "collection": "residents",
+      "keys": {
+        "is_unit_admin": 1
+      },
+      "name": "unit_admin_index"
+    },
+    {
+      "collection": "residents",
+      "keys": {
+        "is_super_admin": 1
+      },
+      "name": "super_admin_index"
+    },
+    {
+      "collection": "certification_requests",
+      "keys": {
+        "applicant_id": 1
+      },
+      "name": "applicant_index"
+    },
+    {
+      "collection": "certification_requests",
+      "keys": {
+        "status": 1,
+        "request_type": 1
+      },
+      "name": "status_type_index"
+    }
+  ]
+}
