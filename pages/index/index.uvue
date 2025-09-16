@@ -33,7 +33,7 @@
 								}"
 								@tap="onBuildingTap(building)"
 							>
-								<text class="building-number">{{ building.building }}</text>
+								
 								<Dice3D />
 							</view>
 						</view>
@@ -73,7 +73,6 @@
 								}"
 								@tap="onBuildingTap(building)"
 							>
-								<text class="building-number">{{ building.building }}</text>
 								<Dice3D />
 							</view>
 						</view>
@@ -282,6 +281,7 @@ onMounted(() => {
 .area-content {
 	height: 100%;
 	display: flex;
+	gap: 10rpx;
 	flex-direction: column;
 	justify-content: space-between;
 	padding: 20rpx;
@@ -314,6 +314,7 @@ onMounted(() => {
 	flex-direction: row;
 	justify-content: space-between;
 	width: 100%;
+	flex: 1;
 	gap: 10rpx;
 }
 
@@ -329,7 +330,7 @@ onMounted(() => {
 }
 
 .flat-building {
-	height: 16vh;
+	flex: 1;
 }
 
 .villa-building {
