@@ -26,13 +26,13 @@
 								v-for="building in row.buildings"
 								:key="building.building"
 								class="building-block flat-building"
-								:style="{
-									backgroundColor: getBuildingColor(building)
-								}"
 								@tap="onBuildingTap(building)"
 							>
 								
-								<Dice3D />
+								<Dice3D
+									:disabled="!building.isOpen"
+									:buildingNumber="building.building"
+								/>
 							</view>
 						</view>
 					</view>
@@ -68,12 +68,12 @@
 								v-for="building in row.buildings"
 								:key="building.building"
 								class="building-block villa-building"
-								:style="{
-									backgroundColor: getBuildingColor(building)
-								}"
 								@tap="onBuildingTap(building)"
 							>
-								<Dice3D />
+								<Dice3D
+									:disabled="!building.isOpen"
+									:buildingNumber="building.building"
+								/>
 							</view>
 						</view>
 					</view>
@@ -133,17 +133,6 @@ const villaRows = computed(() => {
 	return rows
 })
 
-// 获取楼栋颜色
-const getBuildingColor = (building: any): string => {
-	if (!building.isOpen) {
-		return '#CCCCCC' // 灰色表示禁用
-	}
-	if (building.type === 'flat') {
-		return '#4CAF50' // 绿色系
-	} else {
-		return '#FF9800' // 橙色系
-	}
-}
 
 // 触摸事件处理
 const handleTouchStart = (e: any) => {
@@ -343,7 +332,6 @@ onMounted(() => {
 	align-items: center;
 	justify-content: center;
 	border-radius: 8rpx;
-	box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.1);
 	transition: all 0.3s ease;
 	flex: 1;
 	max-width: 35vw;

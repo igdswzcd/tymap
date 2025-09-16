@@ -2,6 +2,16 @@
 const common_vendor = require("../common/vendor.js");
 const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
   __name: "Dice3D",
+  props: {
+    disabled: {
+      type: Boolean,
+      default: false
+    },
+    buildingNumber: {
+      type: String,
+      default: ""
+    }
+  },
   setup(__props) {
     const instance = common_vendor.getCurrentInstance();
     const boxRef = common_vendor.ref(null);
@@ -17,13 +27,20 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
       }).exec();
     });
     return (_ctx = null, _cache = null) => {
-      const __returned__ = {
-        a: `rotateY(90deg) translateZ(${rightTranslateZ.value})`,
-        b: common_vendor.sei(common_vendor.gei(_ctx, "", "r0-5983e723"), "view", boxRef, {
+      const __returned__ = common_vendor.e(new UTSJSONObject({
+        a: __props.disabled
+      }), __props.disabled ? new UTSJSONObject({}) : new UTSJSONObject({
+        b: common_vendor.t(__props.buildingNumber)
+      }), new UTSJSONObject({
+        c: `rotateY(90deg) translateZ(${rightTranslateZ.value})`,
+        d: common_vendor.sei(common_vendor.gei(_ctx, "", "r0-5983e723"), "view", boxRef, new UTSJSONObject({
           "k": "boxRef"
-        }),
-        c: common_vendor.n("dice-" + componentId.value)
-      };
+        })),
+        e: common_vendor.n("dice-" + componentId.value),
+        f: common_vendor.n(new UTSJSONObject({
+          "disabled": __props.disabled
+        }))
+      }));
       return __returned__;
     };
   }

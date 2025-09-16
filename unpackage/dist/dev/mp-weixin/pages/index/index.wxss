@@ -113,7 +113,6 @@
 	align-items: center;
 	justify-content: center;
 	border-radius: 8rpx;
-	box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.1);
 	transition: all 0.3s ease;
 	flex: 1;
 	max-width: 35vw;

@@ -59,16 +59,6 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
       }
       return rows;
     });
-    const getBuildingColor = (building = null) => {
-      if (!building.isOpen) {
-        return "#CCCCCC";
-      }
-      if (building.type === "flat") {
-        return "#4CAF50";
-      } else {
-        return "#FF9800";
-      }
-    };
     const handleTouchStart = (e = null) => {
       if (e.touches && e.touches[0]) {
         touchStartX.value = e.touches[0].clientX;
@@ -91,7 +81,7 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
       }
     };
     const onBuildingTap = (building = null) => {
-      common_vendor.index.__f__("log", "at pages/index/index.uvue:180", "点击楼栋:", building);
+      common_vendor.index.__f__("log", "at pages/index/index.uvue:169", "点击楼栋:", building);
       if (!building.isOpen) {
         common_vendor.index.showToast({
           title: `${building.building}栋 (未开放)`,
@@ -112,7 +102,7 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
       }, 1e3);
     };
     common_vendor.onMounted(() => {
-      common_vendor.index.__f__("log", "at pages/index/index.uvue:216", "楼栋视图初始化");
+      common_vendor.index.__f__("log", "at pages/index/index.uvue:205", "楼栋视图初始化");
     });
     return (_ctx = null, _cache = null) => {
       const __returned__ = {
@@ -121,8 +111,11 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
             a: common_vendor.f(row.buildings, (building = null, k1 = null, i1 = null) => {
               return {
                 a: "6f36ccca-0-" + i0 + "-" + i1,
-                b: building.building,
-                c: getBuildingColor(building),
+                b: common_vendor.p({
+                  disabled: !building.isOpen,
+                  buildingNumber: building.building
+                }),
+                c: building.building,
                 d: common_vendor.o(($event = null) => {
                   return onBuildingTap(building);
                 }, building.building)
@@ -141,8 +134,11 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
             a: common_vendor.f(row.buildings, (building = null, k1 = null, i1 = null) => {
               return {
                 a: "6f36ccca-1-" + i0 + "-" + i1,
-                b: building.building,
-                c: getBuildingColor(building),
+                b: common_vendor.p({
+                  disabled: !building.isOpen,
+                  buildingNumber: building.building
+                }),
+                c: building.building,
                 d: common_vendor.o(($event = null) => {
                   return onBuildingTap(building);
                 }, building.building)
