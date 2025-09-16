@@ -32,6 +32,7 @@
 								<Dice3D
 									:disabled="!building.isOpen"
 									:buildingNumber="building.building"
+									:residentCount="buildingResidentCounts[building.building] || 0"
 								/>
 							</view>
 						</view>
@@ -73,6 +74,7 @@
 								<Dice3D
 									:disabled="!building.isOpen"
 									:buildingNumber="building.building"
+									:residentCount="buildingResidentCounts[building.building] || 0"
 								/>
 							</view>
 						</view>
@@ -88,12 +90,14 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { generateBuildings, getBuildingsByRow, getAllRows } from '@/utils/buildingData.js'
 import Dice3D from '@/components/Dice3D.uvue'
+import { getBuildingResidentCounts, insertMultipleTestResidents } from '@/utils/mockData.uts'
 
 // 状态管理
 const currentArea = ref<'flat' | 'villa'>('flat')
 const touchStartX = ref(0)
 const touchStartTime = ref(0)
 const isAnimating = ref(false)
+const buildingResidentCounts = ref<Record<string, number>>({})
 
 // 生成楼栋数据
 const allBuildings = generateBuildings()
@@ -200,9 +204,37 @@ const navigateTo = (page: string) => {
 	}
 }
 
+// 初始化测试数据
+const initializeTestData = async () => {
+	try {
+		// 先尝试插入测试数据
+		await insertMultipleTestResidents()
+		console.log('测试数据初始化成功')
+	} catch (error) {
+		// 如果插入失败（可能数据已存在），继续执行
+		console.log('测试数据初始化跳过:', error.message)
+	}
+}
+
+// 获取住户数量数据
+const loadBuildingResidentCounts = async () => {
+	try {
+		const counts = await getBuildingResidentCounts()
+		buildingResidentCounts.value = counts
+	} catch (error) {
+		console.error('获取住户数量失败:', error)
+	}
+}
+
 // 生命周期
-onMounted(() => {
+onMounted(async () => {
 	console.log('楼栋视图初始化')
+
+	// 先初始化测试数据
+	await initializeTestData()
+
+	// 然后获取住户数量
+	loadBuildingResidentCounts()
 })
 </script>
 
