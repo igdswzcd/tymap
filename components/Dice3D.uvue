@@ -1,7 +1,7 @@
 <template>
   <view :class="['dice-' + componentId, 'box', { 'disabled': disabled }]" ref="boxRef" :style="diceStyle">
     <view class="front face">
-      <view v-if="!disabled && residentCount" class="wavy">
+      <view v-if="!disabled && residentCount" :class="['wavy', getGradientClass(buildingNumber)]">
         <view class="wave wave-1"></view>
         <view class="wave wave-2"></view>
         <view class="wave wave-3"></view>
@@ -20,7 +20,7 @@
     <view class="right face" :style="{
       transform: `rotateY(90deg) translateZ(${rightTranslateZ})`
     }">
-      <view v-if="!disabled && residentCount" class="wavy">
+      <view v-if="!disabled && residentCount" :class="['wavy', getRightGradientClass(buildingNumber)]">
         <view class="wave wave-1"></view>
         <view class="wave wave-2"></view>
         <view class="wave wave-3"></view>
@@ -70,15 +70,10 @@ const randomWaveRotation = ref(Math.random() * 360) // 0-360度
 const waveHeight = computed(() => {
   const occupancyRate = props.totalCapacity > 0 ? props.doorCount / props.totalCapacity : 0
   // -75% 接近空，-100% 接近满
+  console.log('wtf', props.buildingNumber, -75 - (occupancyRate * 25))
   return -75 - (occupancyRate * 25)
 })
 
-// 计算波浪样式（包含随机初始角度和高度）
-const waveStyle = computed(() => {
-  return {
-    transform: `translate(-50%, ${waveHeight.value}%) rotate(${randomWaveRotation.value}deg)`
-  }
-})
 
 // 计算骰子样式（设置CSS变量）
 const diceStyle = computed(() => {
@@ -87,6 +82,63 @@ const diceStyle = computed(() => {
     '--wave-rotation': `${randomWaveRotation.value}deg`
   }
 })
+
+// 根据栋号获取渐变class
+const getGradientClass = (buildingNumber) => {
+  const num = parseInt(buildingNumber)
+
+  // class1,4,17: 80%透明度黄->黄
+  if ([1, 4, 17].includes(num)) {
+    return 'gradient-yellow-transparent'
+  }
+
+  // class2,3：黄->蓝->淡红
+  if ([2, 3].includes(num)) {
+    return 'gradient-yellow-blue-red'
+  }
+
+  // class8,9：淡红->蓝
+  if ([8, 9].includes(num)) {
+    return 'gradient-red-blue'
+  }
+
+  // class villa：80%淡绿->淡绿
+  // 假设别墅栋号为10及以上
+  if (num >= 10) {
+    return 'gradient-green-transparent'
+  }
+
+  // 默认返回黄色透明渐变
+  return 'gradient-yellow-transparent'
+}
+
+// 根据栋号获取right面渐变class（基于终止色）
+const getRightGradientClass = (buildingNumber) => {
+  const num = parseInt(buildingNumber)
+
+  // class1,4,17: 终止色为黄色透明
+  if ([1, 4, 17].includes(num)) {
+    return 'right-gradient-yellow'
+  }
+
+  // class2,3：终止色为淡红色
+  if ([2, 3].includes(num)) {
+    return 'right-gradient-red'
+  }
+
+  // class8,9：终止色为蓝色
+  if ([8, 9].includes(num)) {
+    return 'right-gradient-blue'
+  }
+
+  // class villa：终止色为绿色透明
+  if (num >= 10) {
+    return 'right-gradient-green'
+  }
+
+  // 默认返回黄色
+  return 'right-gradient-yellow'
+}
 
 onMounted(() => {
 	const query = uni.createSelectorQuery().in(instance.proxy);
@@ -105,7 +157,7 @@ onMounted(() => {
 <style>
 .box {
   width: 80%;
-  height: 65%;
+  height: 75%;
   position: relative;
   transform-style: preserve-3d;
   transform: rotateX(-10deg) rotateY(-15deg);
@@ -143,11 +195,67 @@ onMounted(() => {
   overflow: hidden;
 }
 
+/* 预制渐变样式 */
+/* class1,4,17: 80%透明度黄->黄 */
+.gradient-yellow-transparent {
+  background: linear-gradient(90deg,
+    rgba(243, 249, 167, 0.8) 0%,
+    rgba(243, 249, 167, 1.0) 100%
+  ) !important;
+}
+
+/* class2,3：黄->蓝->淡红 */
+.gradient-yellow-blue-red {
+  background: linear-gradient(90deg,
+    #F3F9A7 0%,
+    #6dd5ed 35%,
+    #6dd5ed 65%,
+    #FBD786 100%
+  ) !important;
+}
+
+/* class8,9：淡红->蓝 */
+.gradient-red-blue {
+  background: linear-gradient(90deg,
+    #FBD786 0%,
+    #6dd5edb0 35%,
+    #6dd5ed 100%
+  ) !important;
+}
+
+/* class villa：80%淡绿->淡绿 */
+.gradient-green-transparent {
+  background: linear-gradient(90deg,
+    rgba(103, 178, 111, 0.8) 0%,
+    rgba(103, 178, 111, 1.0) 100%
+  ) !important;
+}
+
+/* Right面基于终止色的纯色背景 */
+/* 基于黄色终止色 */
+.right-gradient-yellow {
+  background: rgba(243, 249, 167, 0.8) !important;
+}
+
+/* 基于淡红色终止色 */
+.right-gradient-red {
+  background: #FBD786 !important;
+}
+
+/* 基于蓝色终止色 */
+.right-gradient-blue {
+  background: #6dd5ed !important;
+}
+
+/* 基于绿色终止色 */
+.right-gradient-green {
+  background: rgba(103, 178, 111, 0.8) !important;
+}
+
 .wavy {
   position: absolute;
   left: 0;
   top: 0;
-  background: #24e32d;
   width: 100%;
   height: 100%;
   pointer-events: none;
@@ -307,7 +415,7 @@ onMounted(() => {
     transform: translate(-50%, var(--wave-height, -75%)) rotate(var(--wave-rotation, 0deg));
   }
   100% {
-    transform: translate(-50%, var(--wave-height, -75%)) rotate(calc(var(--wave-rotation, 0deg) + 360deg));
+    transform: translate(-50%, var(--wave-height, -75%)) rotate(calc(var(--wave-rotation, 0deg) - 360deg));
   }
 }
 </style>
