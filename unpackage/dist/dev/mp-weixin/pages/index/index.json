@@ -1,6 +1,0 @@
-{
-  "navigationBarTitleText": "住户地图",
-  "usingComponents": {
-    "dice3-d": "../../components/Dice3D"
-  }
-}

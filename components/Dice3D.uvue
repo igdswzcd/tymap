@@ -1,5 +1,5 @@
 <template>
-  <view :class="['dice-' + componentId, 'box', { 'disabled': disabled }]" ref="boxRef">
+  <view :class="['dice-' + componentId, 'box', { 'disabled': disabled }]" ref="boxRef" :style="diceStyle">
     <view class="front face">
       <view v-if="!disabled && residentCount" class="wavy">
         <view class="wave wave-1"></view>
@@ -30,7 +30,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref, getCurrentInstance } from 'vue'
+import { onMounted, ref, getCurrentInstance, computed } from 'vue'
 
 const instance = getCurrentInstance()
 
@@ -39,7 +39,7 @@ const rightTranslateZ = ref('133px')
 const componentId = ref(Math.random().toString(36).substr(2, 9))
 
 // Props
-defineProps({
+const props = defineProps({
   disabled: {
     type: Boolean,
     default: false
@@ -60,6 +60,31 @@ defineProps({
     type: Number,
     default: 0
   },
+})
+
+// 随机初始角度（用于波浪动画）
+const randomWaveRotation = ref(Math.random() * 360) // 0-360度
+
+// 计算波浪高度（基于入住率）
+const waveHeight = computed(() => {
+  const occupancyRate = props.totalCapacity > 0 ? props.doorCount / props.totalCapacity : 0
+  // -75% 接近空，-100% 接近满
+  return -75 - (occupancyRate * 25)
+})
+
+// 计算波浪样式（包含随机初始角度和高度）
+const waveStyle = computed(() => {
+  return {
+    transform: `translate(-50%, ${waveHeight.value}%) rotate(${randomWaveRotation.value}deg)`
+  }
+})
+
+// 计算骰子样式（设置CSS变量）
+const diceStyle = computed(() => {
+  return {
+    '--wave-height': `${waveHeight.value}%`,
+    '--wave-rotation': `${randomWaveRotation.value}deg`
+  }
 })
 
 onMounted(() => {
@@ -238,10 +263,10 @@ onMounted(() => {
 
 @keyframes waveAnimate {
   0% {
-    transform: translate(-50%, -75%) rotate(0deg);
+    transform: translate(-50%, var(--wave-height, -75%)) rotate(var(--wave-rotation, 0deg));
   }
   100% {
-    transform: translate(-50%, -75%) rotate(360deg);
+    transform: translate(-50%, var(--wave-height, -75%)) rotate(calc(var(--wave-rotation, 0deg) + 360deg));
   }
 }
 
@@ -261,10 +286,10 @@ onMounted(() => {
 
 @keyframes waveAnimateRight {
   0% {
-    transform: translate(-50%, -75%) rotate(0deg);
+    transform: translate(-50%, var(--wave-height, -75%)) rotate(var(--wave-rotation, 0deg));
   }
   100% {
-    transform: translate(-50%, -75%) rotate(360deg);
+    transform: translate(-50%, var(--wave-height, -75%)) rotate(calc(var(--wave-rotation, 0deg) + 360deg));
   }
 }
 </style>

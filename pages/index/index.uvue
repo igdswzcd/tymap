@@ -214,7 +214,7 @@ const navigateTo = (page: string) => {
 // 初始化测试数据
 const initializeTestData = async () => {
 	try {
-		// 先尝试插入测试数据
+		// 先尝试插入测试数据（insertMultipleTestResidents 函数内部已包含清空操作）
 		await insertMultipleTestResidents()
 		console.log('测试数据初始化成功')
 	} catch (error) {
