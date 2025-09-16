@@ -6,7 +6,6 @@
 			<view
 				class="visualization-area"
 				@touchstart="handleTouchStart"
-				@touchmove="handleTouchMove"
 				@touchend="handleTouchEnd"
 			>
 				<view
@@ -17,7 +16,6 @@
 					<view
 						class="area-content flat-area"
 						:class="{ 'secondary-area': currentArea === 'villa' }"
-						:style="{ width: currentArea === 'flat' ? '44%' : '50%' }"
 					>
 						<view
 							v-for="row in flatRows"
@@ -40,7 +38,10 @@
 					</view>
 
 					<!-- 中间的箭头 -->
-					<view class="area-switch-wrapper">
+					<view
+						class="area-switch-wrapper"
+						:class="{ 'left-position': currentArea === 'villa' }"
+					>
 						<view
 							class="area-switch"
 							:class="{
@@ -57,7 +58,6 @@
 					<view
 						class="area-content villa-area"
 						:class="{ 'secondary-area': currentArea === 'flat' }"
-						:style="{ width: currentArea === 'flat' ? '50%' : '44%' }"
 					>
 						<view
 							v-for="row in villaRows"
@@ -80,6 +80,7 @@
 				</view>
 			</view>
 		</view>
+		<view class="opr-area"></view>
 	</view>
 </template>
 
@@ -146,28 +147,30 @@ const getBuildingColor = (building: any): string => {
 
 // 触摸事件处理
 const handleTouchStart = (e: any) => {
-	touchStartX.value = e.touches[0].clientX
-	touchStartTime.value = Date.now()
-}
-
-const handleTouchMove = (e: any) => {
-	// 简化处理，只需要记录位置
+	if (e.touches && e.touches[0]) {
+		touchStartX.value = e.touches[0].clientX
+		touchStartTime.value = Date.now()
+	}
 }
 
 const handleTouchEnd = (e: any) => {
 	const touchEndTime = Date.now()
 	const touchDuration = touchEndTime - touchStartTime.value
-	const touchEndX = e.changedTouches[0].clientX
-	const deltaX = touchEndX - touchStartX.value
 
-	// 判断滑动方向和距离
-	if (Math.abs(deltaX) > 50 && touchDuration < 500) {
-		if (deltaX > 0 && currentArea.value === 'villa') {
-			// 向右滑动，切换到平层区
-			currentArea.value = 'flat'
-		} else if (deltaX < 0 && currentArea.value === 'flat') {
-			// 向左滑动，切换到别墅区
-			currentArea.value = 'villa'
+	// 检查changedTouches是否存在
+	if (e.changedTouches && e.changedTouches[0]) {
+		const touchEndX = e.changedTouches[0].clientX
+		const deltaX = touchEndX - touchStartX.value
+
+		// 判断滑动方向和距离
+		if (Math.abs(deltaX) > 50 && touchDuration < 500) {
+			if (deltaX > 0 && currentArea.value === 'villa') {
+				// 向右滑动，切换到平层区
+				currentArea.value = 'flat'
+			} else if (deltaX < 0 && currentArea.value === 'flat') {
+				// 向左滑动，切换到别墅区
+				currentArea.value = 'villa'
+			}
 		}
 	}
 }
@@ -216,23 +219,46 @@ onMounted(() => {
 
 <style>
 .container {
-	height: 100vh;
+	height: 100%;
 	background-color: #f0f0f0;
 	position: relative;
 	overflow: hidden;
+	display: flex;
 }
 
 .main-content {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	height: 100vh;
+	height: 80%;
+	overflow: hidden;
+	flex: 1;
+}
+.opr-area {
+	width: 100%;
+	height: 200rpx;
+}
+
+.area-switch-wrapper {
+	height: 100%;
+	left: calc(50% - 75rpx);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: absolute;
+	top: 0;
+	z-index: 10;
+	transition: left 1s cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+.area-switch-wrapper.left-position {
+	left: calc(50% + 5rpx);
 }
 
 .area-switch {
 	background: rgba(255, 255, 255, 0.9);
-	width: 80rpx;
-	height: 80rpx;
+	width: 70rpx;
+	height: 70rpx;
 	border-radius: 50%;
 	display: flex;
 	align-items: center;
@@ -280,6 +306,7 @@ onMounted(() => {
 
 .area-content {
 	height: 100%;
+	width: 50%;
 	display: flex;
 	gap: 10rpx;
 	flex-direction: column;
@@ -289,20 +316,13 @@ onMounted(() => {
 	transition: width 1s cubic-bezier(0.4, 0, 0.6, 1), opacity 1s cubic-bezier(0.4, 0, 0.6, 1);
 }
 
-.area-switch-wrapper {
-	width: 6%;
-	height: 100%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
 .flat-area {
-	/* 移除右侧padding，避免空间不足 */
+	padding-right: 2.5%;
 }
 
 .villa-area {
 	/* 别墅区样式 */
+	padding-left: 2.5%;
 }
 
 .secondary-area {
@@ -329,12 +349,8 @@ onMounted(() => {
 	max-width: 35vw;
 }
 
-.flat-building {
+.flat-building, villa-building {
 	flex: 1;
-}
-
-.villa-building {
-	height: 10vh;
 }
 
 .building-block:active {

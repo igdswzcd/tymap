@@ -60,5 +60,10 @@
 			"icons": {},
 			"splashScreens": {}
 		}
+	},
+	"web": {
+		"router": {
+			"mode": ""
+		}
 	}
 }

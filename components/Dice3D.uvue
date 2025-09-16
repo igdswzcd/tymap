@@ -1,70 +1,53 @@
 <template>
-  <view :id="'dice-' + componentId" ref="boxRef" class="box" :style="{
-    '--bottom-translateZ': bottomTranslateZ,
-    '--right-translateZ': rightTranslateZ
-  }">
+  <view :class="'dice-' + componentId" ref="boxRef" class="box">
     <view class="front face">
+
     </view>
     <view class="back face">
     </view>
     <view class="left face">
     </view>
-    <view class="right face">
+    <view class="right face" :style="{
+      transform: `rotateY(90deg) translateZ(${rightTranslateZ})`
+    }">
     </view>
     <view class="top face">
-    </view>
-    <view class="bottom face">
     </view>
   </view>
 </template>
 
-<script setup lang="uts">
-import { onMounted, ref } from 'vue'
+<script setup>
+import { onMounted, ref, getCurrentInstance } from 'vue'
+
+const instance = getCurrentInstance()
 
 const boxRef = ref(null)
-const bottomTranslateZ = ref('-92px')
 const rightTranslateZ = ref('133px')
 const componentId = ref(Math.random().toString(36).substr(2, 9))
 
 onMounted(() => {
-  setTimeout(() => {
-    const query = uni.createSelectorQuery()
-    query.select(`#dice-${componentId.value} .front`).boundingClientRect((data) => {
+	const query = uni.createSelectorQuery().in(instance.proxy);
+    query.select(`.dice-${componentId.value} .front`).boundingClientRect(function(data) {
       if (data) {
-        console.log(`Component ${componentId.value}:`, data.width, data.height)
         // 基础尺寸
         const baseSize = 25
-        // bottom: 基于 front 元素的高度来计算
-        const x = data.height;
-        let bottomZ;
-        if (x <= 48.46) {
-            bottomZ = -1.006 * x + 31.26;
-        } else if (x <= 51.33) {
-            bottomZ = -1.916 * (x - 48.46) - 17.5;
-        } else if (x <= 99) {
-            bottomZ = -23;
-        } else {
-            bottomZ = -0.181 * (x - 99.78) - 72;
-        }
-        bottomTranslateZ.value = `${bottomZ}px`
-        
         // right: 基于 front 元素的宽度来计算
         const rightZ = (data.width - 25) / Math.cos(16 * Math.PI / 180)  // (data.width - 25) / cos(15deg)
         rightTranslateZ.value = `${rightZ}px`
       }
     }).exec()
-  }, 100)
 })
 </script>
 
 <style>
 .box {
   width: 80%;
-  height: 80%;
+  height: 65%;
   position: relative;
   transform-style: preserve-3d;
   transform: rotateX(-10deg) rotateY(-15deg);
   overflow: visible;
+  transition: transform 0.6s ease;
 }
 .face {
   background-color: white;
@@ -88,14 +71,7 @@ onMounted(() => {
   width: 100%;
   height: 50px;
   border: 1px solid #000;
-  transform: rotateX(90deg) translateZ(25px);
-}
-.bottom {
-  position: absolute;
-  width: 100%;
-  height: 50px;
-  border: 1px solid #000;
-  transform: rotateX(90deg) translateZ(var(--bottom-translateZ));
+  transform: rotateX(90deg) translateZ(24px);
 }
 .left {
   position: absolute;
@@ -108,25 +84,7 @@ onMounted(() => {
   position: absolute;
   width: 50px;
   height: 100%;
-  transform: rotateY(90deg) translateZ(var(--right-translateZ));
+  transform: rotateY(90deg) translateZ(133px);
   border: 1px solid #000;
-}
-
-@keyframes diceRoll {
-  0% {
-    transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg);
-  }
-  30% {
-    transform: rotateX(120deg) rotateY(60deg) rotateZ(90deg);
-  }
-  60% {
-    transform: rotateX(240deg) rotateY(180deg) rotateZ(180deg);
-  }
-  80% {
-    transform: rotateX(300deg) rotateY(270deg) rotateZ(270deg);
-  }
-  100% {
-    transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg);
-  }
 }
 </style>
