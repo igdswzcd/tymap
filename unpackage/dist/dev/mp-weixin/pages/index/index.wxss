@@ -115,7 +115,7 @@
 	border-radius: 8rpx;
 	transition: all 0.3s ease;
 	flex: 1;
-	max-width: 35vw;
+	max-width: 40vw;
 }
 .flat-building, villa-building {
 	flex: 1;
