@@ -53,7 +53,7 @@
 							}"
 							@tap="switchArea"
 						>
-							<text class="switch-arrow">→</text>
+							<text class="switch-arrow">➜</text>
 						</view>
 					</view>
 
