@@ -4,9 +4,7 @@ export async function insertMultipleTestResidents() {
 
 	// 首先清空现有数据（避免重复插入）
 	try {
-		await db.collection('residents').where({
-			openid: db.command.startsWith('openid_')
-		}).remove()
+		await db.collection('residents').where('/^openid_/.test(openid)').remove()
 		console.log('清空现有测试数据成功')
 	} catch (error) {
 		console.log('清空数据失败或无数据:', error.message)
@@ -34,7 +32,7 @@ export async function insertMultipleTestResidents() {
 						nickname: name,
 						phone: '1380013' + String(1000 + building1Residents.length).padStart(4, '0'),
 						openid: 'openid_1_' + (unit * 100 + floor * 10 + door),
-						credit_level: Math.floor(Math.random() * 3) + 1,
+						credit_level: Math.floor(Math.random() * 3),
 						is_super_admin: false,
 						is_unit_admin: unit === 1 && floor === 1 && door === 1,
 						is_family_owner: Math.random() > 0.3,
@@ -45,31 +43,30 @@ export async function insertMultipleTestResidents() {
 		}
 	}
 
-	// 栋2: 4个单元，每个单元8层，每层2户，假设60%入住率
+	// 栋2: 4个单元，每个单元8层，每层2户，100%入住率（每户一人）
 	const building2Residents = []
 	for (let unit = 1; unit <= 4; unit++) {
 		for (let floor = 1; floor <= 8; floor++) {
 			for (let door = 1; door <= 2; door++) {
-				if (Math.random() > 0.4) { // 60%入住率
-					const nameIndex = Math.floor(Math.random() * names.length)
-					const givenNameIndex = Math.floor(Math.random() * givenNames.length)
-					const name = names[nameIndex] + givenNames[givenNameIndex]
+				// 移除随机判断，确保每户都有住户
+				const nameIndex = Math.floor(Math.random() * names.length)
+				const givenNameIndex = Math.floor(Math.random() * givenNames.length)
+				const name = names[nameIndex] + givenNames[givenNameIndex]
 
-					building2Residents.push({
-						building: 2,
-						unit: unit,
-						floor: floor,
-						door: door,
-						nickname: name,
-						phone: '1380014' + String(1000 + building2Residents.length).padStart(4, '0'),
-						openid: 'openid_2_' + (unit * 100 + floor * 10 + door),
-						credit_level: Math.floor(Math.random() * 3) + 1,
-						is_super_admin: false,
-						is_unit_admin: unit === 1 && floor === 1 && door === 1,
-						is_family_owner: Math.random() > 0.3,
-						owner_type: Math.random() > 0.3 ? 'owner' : 'tenant'
-					})
-				}
+				building2Residents.push({
+					building: 2,
+					unit: unit,
+					floor: floor,
+					door: door,
+					nickname: name,
+					phone: '1380014' + String(1000 + building2Residents.length).padStart(4, '0'),
+					openid: 'openid_2_' + (unit * 100 + floor * 10 + door),
+					credit_level: Math.floor(Math.random() * 3),
+					is_super_admin: false,
+					is_unit_admin: unit === 1 && floor === 1 && door === 1,
+					is_family_owner: Math.random() > 0.3,
+					owner_type: Math.random() > 0.3 ? 'owner' : 'tenant'
+				})
 			}
 		}
 	}
@@ -92,7 +89,7 @@ export async function insertMultipleTestResidents() {
 						nickname: name,
 						phone: '1380015' + String(1000 + building3Residents.length).padStart(4, '0'),
 						openid: 'openid_3_' + (unit * 100 + floor * 10 + door),
-						credit_level: Math.floor(Math.random() * 3) + 1,
+						credit_level: Math.floor(Math.random() * 3),
 						is_super_admin: false,
 						is_unit_admin: unit === 1 && floor === 1 && door === 1,
 						is_family_owner: Math.random() > 0.3,
@@ -121,7 +118,7 @@ export async function insertMultipleTestResidents() {
 						nickname: name,
 						phone: '1380016' + String(1000 + building4Residents.length).padStart(4, '0'),
 						openid: 'openid_4_' + (unit * 100 + floor * 10 + door),
-						credit_level: Math.floor(Math.random() * 3) + 1,
+						credit_level: Math.floor(Math.random() * 3),
 						is_super_admin: false,
 						is_unit_admin: unit === 1 && floor === 1 && door === 1,
 						is_family_owner: Math.random() > 0.3,
@@ -150,7 +147,7 @@ export async function insertMultipleTestResidents() {
 						nickname: name,
 						phone: '1380017' + String(1000 + building5Residents.length).padStart(4, '0'),
 						openid: 'openid_5_' + (unit * 100 + floor * 10 + door),
-						credit_level: Math.floor(Math.random() * 3) + 1,
+						credit_level: Math.floor(Math.random() * 3),
 						is_super_admin: false,
 						is_unit_admin: unit === 1 && floor === 1 && door === 1,
 						is_family_owner: Math.random() > 0.3,

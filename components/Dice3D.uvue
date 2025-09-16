@@ -10,8 +10,9 @@
         <text>🔒</text>
       </view>
       <view v-else class="building-number">
-        <text>{{ buildingNumber }}</text>
-        <text v-if="residentCount" class="resident-count">({{ residentCount }})</text>
+        <text class="building-name">{{ buildingNumber }}栋</text>
+        <text v-if="doorCount && totalCapacity" class="household-count">{{ doorCount }}/{{ totalCapacity }}户</text>
+        <text v-if="residentCount" class="resident-count">{{ residentCount }}人</text>
       </view>
     </view>
     <view class="back face"></view>
@@ -244,16 +245,33 @@ onMounted(() => {
 
 .building-number {
   color: #495057;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: bold;
   text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.building-name {
+  color: #495057;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.household-count {
+  color: #6c757d;
+  font-size: 11px;
+  margin-top: 2px;
 }
 
 .resident-count {
-  color: #6c757d;
-  font-size: 12px;
-  font-weight: normal;
-  margin-left: 4px;
+  color: #28a745;
+  font-size: 11px;
+  margin-top: 1px;
+  font-weight: 500;
 }
 
 @keyframes lockPulse {
