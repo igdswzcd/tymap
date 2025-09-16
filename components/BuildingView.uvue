@@ -1,0 +1,391 @@
+<template>
+	<view class="building-view">
+		<view
+			class="visualization-area"
+			@touchstart="handleTouchStart"
+			@touchend="handleTouchEnd"
+		>
+			<view
+				class="areas-container"
+				:style="{ transform: `translateX(${currentArea === 'flat' ? '0' : '-50%'})` }"
+			>
+				<!-- 平层区 -->
+				<view
+					class="area-content flat-area"
+					:class="{ 'secondary-area': currentArea === 'villa' }"
+				>
+					<view
+						v-for="row in flatRows"
+						:key="row.number"
+						class="row-container"
+					>
+						<view
+							v-for="building in row.buildings"
+							:key="building.building"
+							class="building-block flat-building"
+							@tap="onBuildingTap(building)"
+						>
+							<Dice3D
+								:disabled="!building.isOpen"
+								:buildingNumber="building.building"
+								:residentCount="buildingResidentCounts[building.building] || 0"
+								:doorCount="buildingDoorCounts[building.building] || 0"
+								:totalCapacity="buildingCapacities[building.building] || 1"
+							/>
+						</view>
+					</view>
+				</view>
+
+				<!-- 中间的箭头 -->
+				<view
+					class="area-switch-wrapper"
+					:class="{ 'left-position': currentArea === 'villa' }"
+				>
+					<view
+						class="area-switch"
+						:class="{
+							'point-right': currentArea === 'villa',
+							'animating': isAnimating
+						}"
+						@tap="switchArea"
+					>
+						<text class="switch-arrow">➜</text>
+					</view>
+				</view>
+
+				<!-- 别墅区 -->
+				<view
+					class="area-content villa-area"
+					:class="{ 'secondary-area': currentArea === 'flat' }"
+				>
+					<view
+						v-for="row in villaRows"
+						:key="row.number"
+						class="row-container"
+					>
+						<view
+							v-for="building in row.buildings"
+							:key="building.building"
+							class="building-block villa-building"
+							@tap="onBuildingTap(building)"
+						>
+							<Dice3D
+								:disabled="!building.isOpen"
+								:buildingNumber="building.building"
+								:residentCount="buildingResidentCounts[building.building] || 0"
+								:doorCount="buildingDoorCounts[building.building] || 0"
+								:totalCapacity="buildingCapacities[building.building] || 1"
+							/>
+						</view>
+					</view>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+import { ref, reactive, onMounted, computed } from 'vue'
+import { generateBuildings, getBuildingsByRow, getAllRows } from '@/utils/buildingData.js'
+import Dice3D from '@/components/Dice3D.uvue'
+import { getBuildingResidentCounts, getBuildingDoorCounts, insertMultipleTestResidents } from '@/utils/mockData.uts'
+import { calculateBuildingCapacity } from '@/utils/buildingData.js'
+
+// 定义事件
+const emit = defineEmits(['buildingTap'])
+
+// 状态管理
+const currentArea = ref<'flat' | 'villa'>('flat')
+const touchStartX = ref(0)
+const touchStartTime = ref(0)
+const isAnimating = ref(false)
+const buildingResidentCounts = ref<Record<string, number>>({})
+const buildingDoorCounts = ref<Record<string, number>>({})
+const buildingCapacities = ref<Record<string, number>>({})
+
+// 生成楼栋数据
+const allBuildings = generateBuildings()
+const flatBuildings = allBuildings.filter(b => b.type === 'flat')
+const villaBuildings = allBuildings.filter(b => b.type === 'villa')
+
+// 计算行数据
+const flatRows = computed(() => {
+	const rows: Array<{ number: number; buildings: any[] }> = []
+	const maxRow = Math.max(...flatBuildings.map(b => b.row))
+
+	for (let i = 0; i <= maxRow; i++) {
+		const rowBuildings = flatBuildings.filter(b => b.row === i)
+		if (rowBuildings.length > 0) {
+			rows.push({
+				number: i,
+				buildings: rowBuildings.sort((a, b) => a.building - b.building)
+			})
+		}
+	}
+	return rows
+})
+
+const villaRows = computed(() => {
+	const rows: Array<{ number: number; buildings: any[] }> = []
+	const maxRow = Math.max(...villaBuildings.map(b => b.row))
+
+	for (let i = 0; i <= maxRow; i++) {
+		const rowBuildings = villaBuildings.filter(b => b.row === i)
+		if (rowBuildings.length > 0) {
+			rows.push({
+				number: i,
+				buildings: rowBuildings.sort((a, b) => a.building - b.building)
+			})
+		}
+	}
+	return rows
+})
+
+// 触摸事件处理
+const handleTouchStart = (e: any) => {
+	if (e.touches && e.touches[0]) {
+		touchStartX.value = e.touches[0].clientX
+		touchStartTime.value = Date.now()
+	}
+}
+
+const handleTouchEnd = (e: any) => {
+	const touchEndTime = Date.now()
+	const touchDuration = touchEndTime - touchStartTime.value
+
+	// 检查changedTouches是否存在
+	if (e.changedTouches && e.changedTouches[0]) {
+		const touchEndX = e.changedTouches[0].clientX
+		const deltaX = touchEndX - touchStartX.value
+
+		// 判断滑动方向和距离
+		if (Math.abs(deltaX) > 50 && touchDuration < 500) {
+			if (deltaX > 0 && currentArea.value === 'villa') {
+				// 向右滑动，切换到平层区
+				currentArea.value = 'flat'
+			} else if (deltaX < 0 && currentArea.value === 'flat') {
+				// 向左滑动，切换到别墅区
+				currentArea.value = 'villa'
+			}
+		}
+	}
+}
+
+// 楼栋点击事件
+const onBuildingTap = (building: any) => {
+	console.log('点击楼栋:', building)
+	emit('buildingTap', building)
+	if (!building.isOpen) {
+		uni.showToast({
+			title: `${building.building}栋 (未开放)`,
+			icon: 'none'
+		})
+	} else {
+		uni.showToast({
+			title: `${building.building}栋`,
+			icon: 'none'
+		})
+	}
+}
+
+// 切换区域
+const switchArea = () => {
+	isAnimating.value = true
+	currentArea.value = currentArea.value === 'flat' ? 'villa' : 'flat'
+
+	// 动画结束后重置状态
+	setTimeout(() => {
+		isAnimating.value = false
+	}, 1000)
+}
+
+// 初始化测试数据
+const initializeTestData = async () => {
+	try {
+		// 先尝试插入测试数据（insertMultipleTestResidents 函数内部已包含清空操作）
+		await insertMultipleTestResidents()
+		console.log('测试数据初始化成功')
+	} catch (error) {
+		// 如果插入失败（可能数据已存在），继续执行
+		console.log('测试数据初始化跳过:', error.message)
+	}
+}
+
+// 获取住户数量数据
+const loadBuildingResidentCounts = async () => {
+	try {
+		const counts = await getBuildingResidentCounts()
+		buildingResidentCounts.value = counts
+	} catch (error) {
+		console.error('获取住户数量失败:', error)
+	}
+}
+
+// 获取door数量数据
+const loadBuildingDoorCounts = async () => {
+	try {
+		const counts = await getBuildingDoorCounts()
+		buildingDoorCounts.value = counts
+	} catch (error) {
+		console.error('获取door数量失败:', error)
+	}
+}
+
+// 计算建筑容量数据
+const loadBuildingCapacities = () => {
+	try {
+		const capacities: Record<string, number> = {}
+		allBuildings.forEach(building => {
+			capacities[building.building] = calculateBuildingCapacity(building.building)
+		})
+		buildingCapacities.value = capacities
+	} catch (error) {
+		console.error('计算建筑容量失败:', error)
+	}
+}
+
+// 对外暴露的方法
+defineExpose({
+	loadBuildingResidentCounts,
+	loadBuildingDoorCounts,
+	loadBuildingCapacities,
+	initializeTestData
+})
+
+// 生命周期
+onMounted(async () => {
+	console.log('楼栋视图初始化')
+
+	// 先初始化测试数据
+	await initializeTestData()
+
+	// 然后获取各种数据
+	loadBuildingResidentCounts()
+	loadBuildingDoorCounts()
+	loadBuildingCapacities()
+})
+</script>
+
+<style>
+.building-view {
+	width: 100%;
+	height: 100%;
+}
+
+.visualization-area {
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+	position: relative;
+}
+
+.areas-container {
+	width: 200%;
+	height: 100%;
+	display: flex;
+	flex-direction: row;
+	transition: transform 1s cubic-bezier(0.4, 0, 0.6, 1);
+	will-change: transform;
+}
+
+.area-content {
+	height: 100%;
+	width: 50%;
+	display: flex;
+	gap: 10rpx;
+	flex-direction: column;
+	justify-content: space-between;
+	padding: 20rpx;
+	box-sizing: border-box;
+	transition: width 1s cubic-bezier(0.4, 0, 0.6, 1), opacity 1s cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+.flat-area {
+	padding-right: 2.5%;
+}
+
+.villa-area {
+	/* 别墅区样式 */
+	padding-left: 2.5%;
+}
+
+.secondary-area {
+	opacity: 0.2;
+}
+
+.row-container {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	width: 100%;
+	flex: 1;
+	gap: 10rpx;
+}
+
+.building-block {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 8rpx;
+	transition: all 0.3s ease;
+	flex: 1;
+	max-width: 40vw;
+}
+
+.flat-building, villa-building {
+	flex: 1;
+}
+
+.building-block:active {
+	transform: scale(0.95);
+}
+
+.area-switch-wrapper {
+	height: 100%;
+	left: calc(50% - 75rpx);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: absolute;
+	top: 0;
+	z-index: 10;
+	transition: left 1s cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+.area-switch-wrapper.left-position {
+	left: calc(50% + 5rpx);
+}
+
+.area-switch {
+	background: rgba(255, 255, 255, 0.9);
+	width: 70rpx;
+	height: 70rpx;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.2);
+	transition: all 1s cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+.area-switch.point-right .switch-arrow {
+	transform: rotate(180deg);
+}
+
+.area-switch.animating {
+	animation: opacityPulse 1s cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+@keyframes opacityPulse {
+	0% { opacity: 1; }
+	50% { opacity: 0.2; }
+	100% { opacity: 1; }
+}
+
+.switch-arrow {
+	font-size: 40rpx;
+	font-weight: bold;
+	color: #3cc51f;
+	transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+</style>

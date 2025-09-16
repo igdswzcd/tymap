@@ -1,272 +1,131 @@
 <template>
 	<view class="container">
-		<!-- 主要内容区域 -->
+		<!-- 主要内容区域 - 容器 -->
 		<view class="main-content">
-			<!-- 楼栋可视化区域 -->
-			<view
-				class="visualization-area"
-				@touchstart="handleTouchStart"
-				@touchend="handleTouchEnd"
-			>
+			<BuildingView @buildingTap="onBuildingTap" ref="buildingViewRef" />
+		</view>
+		<view class="opr-area">
+			<view class="button-container">
+				<!-- 左侧区域 - 上下flex布局 -->
 				<view
-					class="areas-container"
-					:style="{ transform: `translateX(${currentArea === 'flat' ? '0' : '-50%'})` }"
+					v-if="userRole.isSuperAdmin"
+					class="left-area"
 				>
-					<!-- 平层区 -->
 					<view
-						class="area-content flat-area"
-						:class="{ 'secondary-area': currentArea === 'villa' }"
+						class="action-button audit-button"
+						@tap="handleRequestList"
 					>
-						<view
-							v-for="row in flatRows"
-							:key="row.number"
-							class="row-container"
-						>
-							<view
-								v-for="building in row.buildings"
-								:key="building.building"
-								class="building-block flat-building"
-								@tap="onBuildingTap(building)"
-							>
-								
-								<Dice3D
-									:disabled="!building.isOpen"
-									:buildingNumber="building.building"
-									:residentCount="buildingResidentCounts[building.building] || 0"
-									:doorCount="buildingDoorCounts[building.building] || 0"
-									:totalCapacity="buildingCapacities[building.building] || 1"
-								/>
-							</view>
-						</view>
+						<image src="@/static/audit.svg"></image>
 					</view>
-
-					<!-- 中间的箭头 -->
 					<view
-						class="area-switch-wrapper"
-						:class="{ 'left-position': currentArea === 'villa' }"
+						class="action-button audit-button"
+						@tap="handleSecondAction"
 					>
-						<view
-							class="area-switch"
-							:class="{
-								'point-right': currentArea === 'villa',
-								'animating': isAnimating
-							}"
-							@tap="switchArea"
-						>
-							<text class="switch-arrow">➜</text>
-						</view>
+						<image src="@/static/audit.svg"></image>
 					</view>
+				</view>
 
-					<!-- 别墅区 -->
-					<view
-						class="area-content villa-area"
-						:class="{ 'secondary-area': currentArea === 'flat' }"
-					>
-						<view
-							v-for="row in villaRows"
-							:key="row.number"
-							class="row-container"
-						>
-							<view
-								v-for="building in row.buildings"
-								:key="building.building"
-								class="building-block villa-building"
-								@tap="onBuildingTap(building)"
-							>
-								<Dice3D
-									:disabled="!building.isOpen"
-									:buildingNumber="building.building"
-									:residentCount="buildingResidentCounts[building.building] || 0"
-									:doorCount="buildingDoorCounts[building.building] || 0"
-									:totalCapacity="buildingCapacities[building.building] || 1"
-								/>
-							</view>
-						</view>
+				<!-- 入住按钮 - 非住户或超级管理员可见 -->
+				<view
+					v-if="!userRole.isResident || userRole.isSuperAdmin"
+					class="action-button checkin-button"
+					@tap="handleCheckin"
+				>
+					<view class="button-content">
+						<text class="button-text">入住</text>
+						<text class="button-text button-exclamation">!</text>
 					</view>
 				</view>
 			</view>
 		</view>
-		<view class="opr-area"></view>
 	</view>
 </template>
 
 <script setup lang="uts">
-import { ref, reactive, onMounted, computed } from 'vue'
-import { generateBuildings, getBuildingsByRow, getAllRows } from '@/utils/buildingData.js'
-import Dice3D from '@/components/Dice3D.uvue'
-import { getBuildingResidentCounts, getBuildingDoorCounts, insertMultipleTestResidents } from '@/utils/mockData.uts'
-import { calculateBuildingCapacity } from '@/utils/buildingData.js'
+import { ref, reactive, onMounted } from 'vue'
+import BuildingView from '@/components/BuildingView.uvue'
+import { getUserOpenid } from '@/utils/mockData.uts'
 
-// 状态管理
-const currentArea = ref<'flat' | 'villa'>('flat')
-const touchStartX = ref(0)
-const touchStartTime = ref(0)
-const isAnimating = ref(false)
-const buildingResidentCounts = ref<Record<string, number>>({})
-const buildingDoorCounts = ref<Record<string, number>>({})
-const buildingCapacities = ref<Record<string, number>>({})
+const buildingViewRef = ref()
 
-// 生成楼栋数据
-const allBuildings = generateBuildings()
-const flatBuildings = allBuildings.filter(b => b.type === 'flat')
-const villaBuildings = allBuildings.filter(b => b.type === 'villa')
-
-// 计算行数据
-const flatRows = computed(() => {
-	const rows: Array<{ number: number; buildings: any[] }> = []
-	const maxRow = Math.max(...flatBuildings.map(b => b.row))
-
-	for (let i = 0; i <= maxRow; i++) {
-		const rowBuildings = flatBuildings.filter(b => b.row === i)
-		if (rowBuildings.length > 0) {
-			rows.push({
-				number: i,
-				buildings: rowBuildings.sort((a, b) => a.building - b.building)
-			})
-		}
-	}
-	return rows
+// 用户角色状态 - 临时设置为超级管理员
+const userRole = reactive({
+	isResident: true,
+	isSuperAdmin: true,
+	openid: 'test_openid_001'
 })
-
-const villaRows = computed(() => {
-	const rows: Array<{ number: number; buildings: any[] }> = []
-	const maxRow = Math.max(...villaBuildings.map(b => b.row))
-
-	for (let i = 0; i <= maxRow; i++) {
-		const rowBuildings = villaBuildings.filter(b => b.row === i)
-		if (rowBuildings.length > 0) {
-			rows.push({
-				number: i,
-				buildings: rowBuildings.sort((a, b) => a.building - b.building)
-			})
-		}
-	}
-	return rows
-})
-
-
-// 触摸事件处理
-const handleTouchStart = (e: any) => {
-	if (e.touches && e.touches[0]) {
-		touchStartX.value = e.touches[0].clientX
-		touchStartTime.value = Date.now()
-	}
-}
-
-const handleTouchEnd = (e: any) => {
-	const touchEndTime = Date.now()
-	const touchDuration = touchEndTime - touchStartTime.value
-
-	// 检查changedTouches是否存在
-	if (e.changedTouches && e.changedTouches[0]) {
-		const touchEndX = e.changedTouches[0].clientX
-		const deltaX = touchEndX - touchStartX.value
-
-		// 判断滑动方向和距离
-		if (Math.abs(deltaX) > 50 && touchDuration < 500) {
-			if (deltaX > 0 && currentArea.value === 'villa') {
-				// 向右滑动，切换到平层区
-				currentArea.value = 'flat'
-			} else if (deltaX < 0 && currentArea.value === 'flat') {
-				// 向左滑动，切换到别墅区
-				currentArea.value = 'villa'
-			}
-		}
-	}
-}
 
 // 楼栋点击事件
 const onBuildingTap = (building: any) => {
 	console.log('点击楼栋:', building)
-	if (!building.isOpen) {
-		uni.showToast({
-			title: `${building.building}栋 (未开放)`,
-			icon: 'none'
-		})
-	} else {
-		uni.showToast({
-			title: `${building.building}栋`,
-			icon: 'none'
-		})
-	}
+	// 事件处理已在BuildingView组件内部完成
 }
 
-// 切换区域
-const switchArea = () => {
-	isAnimating.value = true
-	currentArea.value = currentArea.value === 'flat' ? 'villa' : 'flat'
-
-	// 动画结束后重置状态
-	setTimeout(() => {
-		isAnimating.value = false
-	}, 1000)
+// 申请列表按钮点击
+const handleRequestList = () => {
+	console.log('查看申请列表')
+	uni.showToast({
+		title: '申请列表功能开发中',
+		icon: 'none'
+	})
 }
 
-// 页面导航
-const navigateTo = (page: string) => {
-	if (page === 'statistics') {
-		uni.navigateTo({
-			url: '/pages/statistics/statistics'
-		})
-	}
+// 入住按钮点击
+const handleCheckin = () => {
+	console.log('申请入住')
+	uni.showToast({
+		title: '入住申请功能开发中',
+		icon: 'none'
+	})
 }
 
-// 初始化测试数据
-const initializeTestData = async () => {
+// 第二个audit按钮点击
+const handleSecondAction = () => {
+	console.log('第二个audit按钮')
+	uni.showToast({
+		title: '第二个功能开发中',
+		icon: 'none'
+	})
+}
+
+// 检查用户身份
+const checkUserRole = async () => {
+	// 临时跳过身份检查，直接使用手动设置的状态
+	console.log('用户身份(临时设置):', userRole)
+
+	/* 实际身份检查逻辑（暂时注释）
 	try {
-		// 先尝试插入测试数据（insertMultipleTestResidents 函数内部已包含清空操作）
-		await insertMultipleTestResidents()
-		console.log('测试数据初始化成功')
-	} catch (error) {
-		// 如果插入失败（可能数据已存在），继续执行
-		console.log('测试数据初始化跳过:', error.message)
-	}
-}
+		const openid = await getUserOpenid()
+		userRole.openid = openid
 
-// 获取住户数量数据
-const loadBuildingResidentCounts = async () => {
-	try {
-		const counts = await getBuildingResidentCounts()
-		buildingResidentCounts.value = counts
-	} catch (error) {
-		console.error('获取住户数量失败:', error)
-	}
-}
+		// 查询用户是否在residents表中
+		const db = uniCloud.databaseForJQL()
+		const result = await db.collection('residents')
+			.where({ openid: openid })
+			.get()
 
-// 获取door数量数据
-const loadBuildingDoorCounts = async () => {
-	try {
-		const counts = await getBuildingDoorCounts()
-		buildingDoorCounts.value = counts
+		if (result.data && result.data.length > 0) {
+			const userData = result.data[0]
+			userRole.isResident = true
+			userRole.isSuperAdmin = userData.is_super_admin || false
+			console.log('用户身份:', userRole)
+		} else {
+			userRole.isResident = false
+			userRole.isSuperAdmin = false
+			console.log('用户不是住户')
+		}
 	} catch (error) {
-		console.error('获取door数量失败:', error)
+		console.error('检查用户身份失败:', error)
+		userRole.isResident = false
+		userRole.isSuperAdmin = false
 	}
-}
-
-// 计算建筑容量数据
-const loadBuildingCapacities = () => {
-	try {
-		const capacities: Record<string, number> = {}
-		allBuildings.forEach(building => {
-			capacities[building.building] = calculateBuildingCapacity(building.building)
-		})
-		buildingCapacities.value = capacities
-	} catch (error) {
-		console.error('计算建筑容量失败:', error)
-	}
+	*/
 }
 
 // 生命周期
 onMounted(async () => {
-	console.log('楼栋视图初始化')
-
-	// 先初始化测试数据
-	await initializeTestData()
-
-	// 然后获取各种数据
-	loadBuildingResidentCounts()
-	loadBuildingDoorCounts()
-	loadBuildingCapacities()
+	// 检查用户身份
+	await checkUserRole()
 })
 </script>
 
@@ -290,129 +149,96 @@ onMounted(async () => {
 .opr-area {
 	width: 100%;
 	height: 200rpx;
-}
-
-.area-switch-wrapper {
-	height: 100%;
-	left: calc(50% - 75rpx);
+	background: #ffffff;
+	border-top: 1rpx solid #e9ecef;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	position: absolute;
-	top: 0;
-	z-index: 10;
-	transition: left 1s cubic-bezier(0.4, 0, 0.6, 1);
-}
-
-.area-switch-wrapper.left-position {
-	left: calc(50% + 5rpx);
-}
-
-.area-switch {
-	background: rgba(255, 255, 255, 0.9);
-	width: 70rpx;
-	height: 70rpx;
-	border-radius: 50%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.2);
-	transition: all 1s cubic-bezier(0.4, 0, 0.6, 1);
-}
-
-.area-switch.point-right .switch-arrow {
-	transform: rotate(180deg);
-}
-
-.area-switch.animating {
-	animation: opacityPulse 1s cubic-bezier(0.4, 0, 0.6, 1);
-}
-
-@keyframes opacityPulse {
-	0% { opacity: 1; }
-	50% { opacity: 0.2; }
-	100% { opacity: 1; }
-}
-
-.switch-arrow {
-	font-size: 40rpx;
-	font-weight: bold;
-	color: #3cc51f;
-	transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.visualization-area {
-	flex: 1;
-	height: 100%;
-	overflow: hidden;
-	position: relative;
-}
-
-.areas-container {
-	width: 200%;
-	height: 100%;
-	display: flex;
-	flex-direction: row;
-	transition: transform 1s cubic-bezier(0.4, 0, 0.6, 1);
-	will-change: transform;
-}
-
-.area-content {
-	height: 100%;
-	width: 50%;
-	display: flex;
-	gap: 10rpx;
-	flex-direction: column;
-	justify-content: space-between;
 	padding: 20rpx;
 	box-sizing: border-box;
-	transition: width 1s cubic-bezier(0.4, 0, 0.6, 1), opacity 1s cubic-bezier(0.4, 0, 0.6, 1);
 }
 
-.flat-area {
-	padding-right: 2.5%;
-}
-
-.villa-area {
-	/* 别墅区样式 */
-	padding-left: 2.5%;
-}
-
-.secondary-area {
-	opacity: 0.2;
-}
-
-.row-container {
+.button-container {
 	display: flex;
 	flex-direction: row;
-	justify-content: space-between;
+	align-items: center;
+	gap: 20rpx;
 	width: 100%;
-	flex: 1;
-	gap: 10rpx;
+	max-width: 750rpx;
 }
 
-.building-block {
+.left-area {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 20rpx;
+}
+
+.action-button {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	border-radius: 8rpx;
+	border-radius: 40rpx;
 	transition: all 0.3s ease;
-	flex: 1;
-	max-width: 40vw;
+	cursor: pointer;
+	padding: 30rpx;
+	box-sizing: border-box;
 }
 
-.flat-building, villa-building {
-	flex: 1;
+.action-button:active {
+	transform: scale(0.98);
 }
 
-.building-block:active {
-	transform: scale(0.95);
+/* Audit按钮 - 白色背景淡灰色边框 */
+.audit-button {
+	background: #ffffff;
+	border: 2rpx solid #e9ecef;
+	min-height: 60rpx;
+	border-radius: 20rpx;
 }
 
-.building-number {
-	color: white;
-	font-size: 28rpx;
-	font-weight: bold;
+/* 入住按钮 - 占4份，绿色渐变 */
+.checkin-button {
+	border-radius: 100rpx;
+	flex: 4;
+	background: linear-gradient(135deg, #00d32aff, #54a0ff);
+	min-height: 140rpx;
 }
+
+.button-icon {
+	font-size: 36rpx;
+	color: #ffffff;
+	margin-right: 16rpx;
+}
+
+.button-content {
+	display: inline;
+	width: 100%;
+	text-align: center;
+}
+
+.button-text {
+	font-size: 48rpx;
+	font-weight: 600;
+	color: #ffffff;
+}
+
+.button-exclamation {
+	font-weight: 900;
+	font-style: italic;
+	margin-left: 8rpx;
+}
+
+.button-label {
+	font-size: 24rpx;
+	color: rgba(255, 255, 255, 0.9);
+	margin-top: 4rpx;
+}
+
+.action-button image {
+	width: 40rpx;
+	height: 40rpx;
+}
+
 
 </style>
