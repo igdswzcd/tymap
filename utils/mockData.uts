@@ -68,6 +68,31 @@ export async function getBuildingResidentCounts() {
 	}
 }
 
+export async function getBuildingDoorCounts() {
+	const db = uniCloud.databaseForJQL()
+
+	try {
+		const result = await db.collection('residents')
+			.groupBy('building, unit, floor, door')
+			.groupField('count(*) as doorResidentCount')
+			.get()
+
+		const buildingDoorCounts = {}
+		result.data.forEach(item => {
+			if (!buildingDoorCounts[item.building]) {
+				buildingDoorCounts[item.building] = 0
+			}
+			buildingDoorCounts[item.building]++
+		})
+
+		console.log('各栋楼door数量:', buildingDoorCounts)
+		return buildingDoorCounts
+	} catch (error) {
+		console.error('获取各栋楼door数量失败:', error)
+		throw error
+	}
+}
+
 // 插入单个测试住户
 export async function insertTestResident() {
 	const db = uniCloud.databaseForJQL()

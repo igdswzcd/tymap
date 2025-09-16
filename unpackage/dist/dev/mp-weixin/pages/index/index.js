@@ -14,6 +14,8 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
     const touchStartTime = common_vendor.ref(0);
     const isAnimating = common_vendor.ref(false);
     const buildingResidentCounts = common_vendor.ref({});
+    const buildingDoorCounts = common_vendor.ref({});
+    const buildingCapacities = common_vendor.ref({});
     const allBuildings = utils_buildingData.generateBuildings();
     const flatBuildings = allBuildings.filter((b = null) => {
       return b.type === "flat";
@@ -83,7 +85,7 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
       }
     };
     const onBuildingTap = (building = null) => {
-      common_vendor.index.__f__("log", "at pages/index/index.uvue:173", "点击楼栋:", building);
+      common_vendor.index.__f__("log", "at pages/index/index.uvue:180", "点击楼栋:", building);
       if (!building.isOpen) {
         common_vendor.index.showToast({
           title: `${building.building}栋 (未开放)`,
@@ -107,9 +109,9 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
       return common_vendor.__awaiter(this, void 0, void 0, function* () {
         try {
           yield utils_mockData.insertMultipleTestResidents();
-          common_vendor.index.__f__("log", "at pages/index/index.uvue:212", "测试数据初始化成功");
+          common_vendor.index.__f__("log", "at pages/index/index.uvue:219", "测试数据初始化成功");
         } catch (error) {
-          common_vendor.index.__f__("log", "at pages/index/index.uvue:215", "测试数据初始化跳过:", error.message);
+          common_vendor.index.__f__("log", "at pages/index/index.uvue:222", "测试数据初始化跳过:", error.message);
         }
       });
     };
@@ -119,15 +121,38 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
           const counts = yield utils_mockData.getBuildingResidentCounts();
           buildingResidentCounts.value = counts;
         } catch (error) {
-          common_vendor.index.__f__("error", "at pages/index/index.uvue:225", "获取住户数量失败:", error);
+          common_vendor.index.__f__("error", "at pages/index/index.uvue:232", "获取住户数量失败:", error);
         }
       });
     };
+    const loadBuildingDoorCounts = () => {
+      return common_vendor.__awaiter(this, void 0, void 0, function* () {
+        try {
+          const counts = yield utils_mockData.getBuildingDoorCounts();
+          buildingDoorCounts.value = counts;
+        } catch (error) {
+          common_vendor.index.__f__("error", "at pages/index/index.uvue:242", "获取door数量失败:", error);
+        }
+      });
+    };
+    const loadBuildingCapacities = () => {
+      try {
+        const capacities = {};
+        allBuildings.forEach((building = null) => {
+          capacities[building.building] = utils_buildingData.calculateBuildingCapacity(building.building);
+        });
+        buildingCapacities.value = capacities;
+      } catch (error) {
+        common_vendor.index.__f__("error", "at pages/index/index.uvue:255", "计算建筑容量失败:", error);
+      }
+    };
     common_vendor.onMounted(() => {
       return common_vendor.__awaiter(this, void 0, void 0, function* () {
-        common_vendor.index.__f__("log", "at pages/index/index.uvue:231", "楼栋视图初始化");
+        common_vendor.index.__f__("log", "at pages/index/index.uvue:261", "楼栋视图初始化");
         yield initializeTestData();
         loadBuildingResidentCounts();
+        loadBuildingDoorCounts();
+        loadBuildingCapacities();
       });
     });
     return (_ctx = null, _cache = null) => {
@@ -140,7 +165,9 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
                 b: common_vendor.p({
                   disabled: !building.isOpen,
                   buildingNumber: building.building,
-                  residentCount: buildingResidentCounts.value[building.building] || 0
+                  residentCount: buildingResidentCounts.value[building.building] || 0,
+                  doorCount: buildingDoorCounts.value[building.building] || 0,
+                  totalCapacity: buildingCapacities.value[building.building] || 1
                 }),
                 c: building.building,
                 d: common_vendor.o(($event = null) => {
@@ -164,7 +191,9 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
                 b: common_vendor.p({
                   disabled: !building.isOpen,
                   buildingNumber: building.building,
-                  residentCount: buildingResidentCounts.value[building.building] || 0
+                  residentCount: buildingResidentCounts.value[building.building] || 0,
+                  doorCount: buildingDoorCounts.value[building.building] || 0,
+                  totalCapacity: buildingCapacities.value[building.building] || 1
                 }),
                 c: building.building,
                 d: common_vendor.o(($event = null) => {

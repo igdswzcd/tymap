@@ -1,6 +1,11 @@
 <template>
   <view :class="['dice-' + componentId, 'box', { 'disabled': disabled }]" ref="boxRef">
     <view class="front face">
+      <view v-if="!disabled && residentCount" class="wavy">
+        <view class="wave wave-1"></view>
+        <view class="wave wave-2"></view>
+        <view class="wave wave-3"></view>
+      </view>
       <view v-if="disabled" class="lock-icon">
         <text>🔒</text>
       </view>
@@ -13,7 +18,13 @@
     <view class="left face"></view>
     <view class="right face" :style="{
       transform: `rotateY(90deg) translateZ(${rightTranslateZ})`
-    }"></view>
+    }">
+      <view v-if="!disabled && residentCount" class="wavy">
+        <view class="wave wave-1"></view>
+        <view class="wave wave-2"></view>
+        <view class="wave wave-3"></view>
+      </view>
+    </view>
     <view class="top face"></view>
   </view>
 </template>
@@ -40,7 +51,15 @@ defineProps({
   residentCount: {
     type: Number,
     default: 0
-  }
+  },
+  doorCount: {
+    type: Number,
+    default: 0
+  },
+  totalCapacity: {
+    type: Number,
+    default: 0
+  },
 })
 
 onMounted(() => {
@@ -95,6 +114,49 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+}
+
+.wavy {
+  position: absolute;
+  left: 0;
+  top: 0;
+  background: #24e32d;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.wave {
+  position: absolute;
+  width: 300%;
+  height: 300%;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -75%);
+  border-radius: 45%;
+}
+
+.right .wave {
+  width: 800%;
+}
+
+.wave-1 {
+  animation: waveAnimate 8s linear infinite;
+  background: rgba(255,255,255,1);
+}
+
+.wave-2 {
+  animation: waveAnimate 12s linear infinite reverse;
+  background: rgba(73, 115, 255, 0.05);
+  border-radius: 40%;
+  background: rgba(255,255,255,0.5);
+}
+
+.wave-3 {
+  animation: waveAnimate 16s linear infinite;
+  background: rgba(255,255,255,0.5);
+  border-radius: 35%;
 }
 
 .back {
@@ -145,6 +207,7 @@ onMounted(() => {
   background: linear-gradient(90deg, #e9ecef 0%, #f8f9fa 100%);
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
+  overflow: hidden;
 }
 
 .lock-icon {
@@ -171,5 +234,37 @@ onMounted(() => {
 @keyframes lockPulse {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.1); }
+}
+
+@keyframes waveAnimate {
+  0% {
+    transform: translate(-50%, -75%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -75%) rotate(360deg);
+  }
+}
+
+.right .wave-1 {
+  animation: waveAnimateRight 8s linear infinite;
+}
+
+.right .wave-2 {
+  animation: waveAnimateRight 12s linear infinite reverse;
+  border-radius: 40%;
+}
+
+.right .wave-3 {
+  animation: waveAnimateRight 16s linear infinite;
+  border-radius: 35%;
+}
+
+@keyframes waveAnimateRight {
+  0% {
+    transform: translate(-50%, -75%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -75%) rotate(360deg);
+  }
 }
 </style>

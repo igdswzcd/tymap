@@ -114,6 +114,20 @@ function getAllDoors() {
   });
   return allDoors;
 }
+function getBuildingByNumber(buildingNumber) {
+  const buildings = generateBuildings();
+  return buildings.find((b) => b.building === buildingNumber) || null;
+}
+function calculateBuildingCapacity(buildingNumber) {
+  const building = getBuildingByNumber(buildingNumber);
+  if (!building)
+    return 0;
+  let totalDoors = 0;
+  building.units.forEach((unit) => {
+    totalDoors += unit.doors.length;
+  });
+  return totalDoors;
+}
 function getCommunityStats() {
   const buildings = generateBuildings();
   const allDoors = getAllDoors();
@@ -125,6 +139,7 @@ function getCommunityStats() {
     villaBuildings: buildings.filter((b) => b.type === "villa").length
   };
 }
+exports.calculateBuildingCapacity = calculateBuildingCapacity;
 exports.generateBuildings = generateBuildings;
 exports.getCommunityStats = getCommunityStats;
 //# sourceMappingURL=../../.sourcemap/mp-weixin/utils/buildingData.js.map

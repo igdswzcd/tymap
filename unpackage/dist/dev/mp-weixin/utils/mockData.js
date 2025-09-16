@@ -67,6 +67,26 @@ function getBuildingResidentCounts() {
     }
   });
 }
+function getBuildingDoorCounts() {
+  return common_vendor.__awaiter(this, void 0, void 0, function* () {
+    const db = common_vendor.er.databaseForJQL();
+    try {
+      const result = yield db.collection("residents").groupBy("building, unit, floor, door").groupField("count(*) as doorResidentCount").get();
+      const buildingDoorCounts = new UTSJSONObject({});
+      result.data.forEach((item = null) => {
+        if (!buildingDoorCounts[item.building]) {
+          buildingDoorCounts[item.building] = 0;
+        }
+        buildingDoorCounts[item.building]++;
+      });
+      common_vendor.index.__f__("log", "at utils/mockData.uts:88", "各栋楼door数量:", buildingDoorCounts);
+      return buildingDoorCounts;
+    } catch (error) {
+      common_vendor.index.__f__("error", "at utils/mockData.uts:91", "获取各栋楼door数量失败:", error);
+      throw error;
+    }
+  });
+}
 function getUserOpenid() {
   return common_vendor.__awaiter(this, void 0, void 0, function* () {
     return new Promise((resolve, reject) => {
@@ -82,6 +102,7 @@ function getUserOpenid() {
     });
   });
 }
+exports.getBuildingDoorCounts = getBuildingDoorCounts;
 exports.getBuildingResidentCounts = getBuildingResidentCounts;
 exports.getUserOpenid = getUserOpenid;
 exports.insertMultipleTestResidents = insertMultipleTestResidents;

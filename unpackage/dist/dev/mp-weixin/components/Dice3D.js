@@ -14,6 +14,14 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
     residentCount: {
       type: Number,
       default: 0
+    },
+    doorCount: {
+      type: Number,
+      default: 0
+    },
+    totalCapacity: {
+      type: Number,
+      default: 0
     }
   },
   setup(__props) {
@@ -32,19 +40,23 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
     });
     return (_ctx = null, _cache = null) => {
       const __returned__ = common_vendor.e(new UTSJSONObject({
-        a: __props.disabled
+        a: !__props.disabled && __props.residentCount
+      }), !__props.disabled && __props.residentCount ? new UTSJSONObject({}) : new UTSJSONObject({}), new UTSJSONObject({
+        b: __props.disabled
       }), __props.disabled ? new UTSJSONObject({}) : common_vendor.e(new UTSJSONObject({
-        b: common_vendor.t(__props.buildingNumber),
-        c: __props.residentCount
+        c: common_vendor.t(__props.buildingNumber),
+        d: __props.residentCount
       }), __props.residentCount ? new UTSJSONObject({
-        d: common_vendor.t(__props.residentCount)
+        e: common_vendor.t(__props.residentCount)
       }) : new UTSJSONObject({})), new UTSJSONObject({
-        e: `rotateY(90deg) translateZ(${rightTranslateZ.value})`,
-        f: common_vendor.sei(common_vendor.gei(_ctx, "", "r0-5983e723"), "view", boxRef, new UTSJSONObject({
+        f: !__props.disabled && __props.residentCount
+      }), !__props.disabled && __props.residentCount ? new UTSJSONObject({}) : new UTSJSONObject({}), new UTSJSONObject({
+        g: `rotateY(90deg) translateZ(${rightTranslateZ.value})`,
+        h: common_vendor.sei(common_vendor.gei(_ctx, "", "r0-5983e723"), "view", boxRef, new UTSJSONObject({
           "k": "boxRef"
         })),
-        g: common_vendor.n("dice-" + componentId.value),
-        h: common_vendor.n(new UTSJSONObject({
+        i: common_vendor.n("dice-" + componentId.value),
+        j: common_vendor.n(new UTSJSONObject({
           "disabled": __props.disabled
         }))
       }));
