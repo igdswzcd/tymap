@@ -2,13 +2,6 @@
   <view class="building-unit-view">
     <!-- 主要内容区域 -->
     <view class="content">
-      <!-- 顶部标题 -->
-      <view class="header">
-        <text class="building-title">{{ buildingNumber }}#</text>
-        <view class="back-btn" @tap="handleClose">
-          <text class="back-icon">←</text>
-        </view>
-      </view>
 
       <!-- 单元网格 -->
       <view class="units-container" :class="getUnitsContainerClass()">
@@ -22,10 +15,6 @@
           <UnitDice3D
             :disabled="!unit.isOpen"
             :unitNumber="unit.unit"
-            :residentCount="unit.residentCount || 0"
-            :doorCount="unit.doorCount || 0"
-            :floorCount="unit.floorCount || 1"
-            :totalCapacity="unit.totalCapacity || 1"
           />
         </view>
       </view>
@@ -51,9 +40,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'unitTap'])
 
 // 响应式数据
-const unitsBaseData = ref<any[]>([]) // 基础单元数据（从buildingManager获取）
-const cloudData = ref<any>({}) // 云端住户数据
-const units = ref<any[]>([]) // 合并后的最终数据
+const units = ref<any[]>([]) // 单元数据
 
 // 计算容器样式
 const getUnitsContainerClass = () => {
@@ -83,99 +70,29 @@ const getUnitItemClass = (index: number) => {
   return ''
 }
 
-// 获取基础单元数据（不依赖云端）
-const loadUnitsBaseData = async () => {
+
+// 获取楼栋单元数据（总函数）
+const loadBuildingUnits = async () => {
   try {
     // 获取楼栋信息
     const buildingInfo = await buildingManager.getBuilding(props.buildingNumber)
 
     if (!buildingInfo || !buildingInfo.units || buildingInfo.units.length === 0) {
-      unitsBaseData.value = []
+      units.value = []
       return
     }
 
     // 创建基础单元数据
-    const baseData = buildingInfo.units.map(unitNumber => ({
+    const unitsData = buildingInfo.units.map(unitNumber => ({
       unit: unitNumber,
-      isOpen: true,
-      floorCount: buildingInfo.floors?.length || 1
+      isOpen: true
     }))
 
-    unitsBaseData.value = baseData
+    units.value = unitsData
   } catch (error) {
-    console.error('加载基础单元数据失败:', error)
-    unitsBaseData.value = []
-  }
-}
-
-// 获取云端住户数据
-const loadCloudData = async () => {
-  try {
-    // 获取该楼栋的所有住户数据
-    const residents = await dataManager.getResidentsByBuilding(props.buildingNumber.toString())
-
-    // 按单元分组住户数据
-    const dataByUnit = {}
-    residents.forEach(resident => {
-      const unitKey = resident.unit
-      if (!dataByUnit[unitKey]) {
-        dataByUnit[unitKey] = []
-      }
-      dataByUnit[unitKey].push(resident)
-    })
-
-    cloudData.value = dataByUnit
-  } catch (error) {
-    console.error('加载云端数据失败:', error)
-    cloudData.value = {}
-  }
-}
-
-// 合并数据
-const mergeUnitsData = () => {
-  if (!unitsBaseData.value.length) {
+    console.error('加载楼栋单元数据失败:', error)
     units.value = []
-    return
   }
-
-  const mergedData = unitsBaseData.value.map(baseUnit => {
-    const unitResidents = cloudData.value[baseUnit.unit] || []
-
-    // 获取该单元的门数（有住户的门）
-    const uniqueDoors = new Set(
-      unitResidents.map(r => `${r.floor}_${r.door}`)
-    )
-
-    // 计算楼层数（基于实际数据）
-    const floors = new Set(unitResidents.map(r => r.floor))
-    const floorCount = floors.size > 0 ? Math.max(...floors) : baseUnit.floorCount
-
-    return {
-      ...baseUnit,
-      residentCount: unitResidents.length,
-      doorCount: uniqueDoors.size,
-      floorCount: floorCount,
-      totalCapacity: floorCount * 2
-    }
-  })
-
-  units.value = mergedData
-}
-
-// 获取楼栋单元数据（总函数）
-const loadBuildingUnits = async () => {
-  // 先加载基础数据（确保UI能显示）
-  await loadUnitsBaseData()
-
-  // 立即显示基础数据
-  mergeUnitsData()
-
-  // 异步加载云端数据（不影响基础显示）
-  loadCloudData().then(() => {
-    mergeUnitsData()
-  }).catch(error => {
-    console.error('云端数据加载失败，但基础数据已显示:', error)
-  })
 }
 
 // 单元点击事件
@@ -213,18 +130,8 @@ onMounted(async () => {
   flex-direction: column;
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20rpx 30rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
-}
-
 .building-title {
-  font-size: 48rpx;
+  font-size: 72rpx;
   font-weight: bold;
   text-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.2);
 }

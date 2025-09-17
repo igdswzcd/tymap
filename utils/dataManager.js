@@ -213,6 +213,17 @@ class DataManager {
 		)
 	}
 
+	// 全局通过单元号查找住户（不指定楼栋）
+	async getResidentsByUnitGlobal(unit) {
+		if (!this.isInitialized) {
+			await this.init()
+		}
+
+		if (!this.data) return []
+
+		return this.data.filter(resident => resident.unit === unit)
+	}
+
 	// 获取指定状态的住户
 	async getResidentsByStatus(status) {
 		if (!this.isInitialized) {

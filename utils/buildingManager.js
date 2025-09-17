@@ -228,6 +228,90 @@ class BuildingManager {
 		return building.units ? building.units.length : 0
 	}
 
+	// 获取指定楼栋的统计信息（包括住户数、门数等）
+	async getBuildingStatistics(buildingNumber) {
+		if (!this.isInitialized) {
+			await this.init()
+		}
+
+		if (!this.buildingsData) return null
+
+		const building = this.buildingsData.find(b => b.building === buildingNumber)
+		if (!building) return null
+
+		// 返回基础统计信息
+		return {
+			building: building.building,
+			type: building.type,
+			units: building.units || [],
+			floors: building.floors || [],
+			isOpen: building.isOpen || false
+		}
+	}
+
+	// 通过单元号查找所属楼栋
+	async getBuildingByUnit(unitNumber) {
+		if (!this.isInitialized) {
+			await this.init()
+		}
+
+		if (!this.buildingsData) return null
+
+		// 遍历所有楼栋，找到包含该单元的楼栋
+		const building = this.buildingsData.find(b =>
+			b.units && b.units.includes(unitNumber)
+		)
+
+		return building || null
+	}
+
+	// 获取指定单元的统计信息（通过单元号）
+	async getUnitStatisticsByUnit(unitNumber) {
+		try {
+			// 先找到所属楼栋
+			const building = await this.getBuildingByUnit(unitNumber)
+			if (!building) return null
+
+			return {
+				building: building.building,
+				unit: unitNumber,
+				floorCount: building.floors?.length || 1,
+				totalCapacity: (building.floors?.length || 1) * 2,
+				isOpen: true
+			}
+		} catch (error) {
+			console.error('通过单元号获取统计信息失败:', error)
+			return null
+		}
+	}
+
+	// 获取指定单元的统计信息
+	async getUnitStatistics(buildingNumber, unitNumber) {
+		try {
+			// 获取楼栋信息
+			const building = await this.getBuilding(buildingNumber)
+			if (!building) return null
+
+			// 检查单元是否存在
+			if (!building.units || !building.units.includes(unitNumber)) {
+				return null
+			}
+
+			// 获取该楼栋的所有住户数据（需要dataManager）
+			// 这里返回基础信息，详细数据需要dataManager配合
+			return {
+				building: buildingNumber,
+				unit: unitNumber,
+				floorCount: building.floors?.length || 1,
+				totalCapacity: (building.floors?.length || 1) * 2,
+				isOpen: true
+			}
+		} catch (error) {
+			console.error('获取单元统计信息失败:', error)
+			return null
+		}
+	}
+
 	// 重置数据（用于测试或强制重新加载）
 	reset() {
 		this.buildingsData = null

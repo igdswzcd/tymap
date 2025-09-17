@@ -1,7 +1,7 @@
 <template>
   <view :class="['dice-' + componentId, 'box', { 'disabled': disabled }]" ref="boxRef" :style="diceStyle">
     <view class="front face">
-      <view v-if="!disabled && residentCount" :class="['wavy', getGradientClass(buildingNumber)]">
+      <view v-if="!disabled && buildingInfo.residentCount" :class="['wavy', getGradientClass(buildingNumber)]">
         <view class="wave wave-1"></view>
         <view class="wave wave-2"></view>
         <view class="wave wave-3"></view>
@@ -13,7 +13,7 @@
         <!-- 顶部单元号 -->
         <view class="units-row">
           <view
-            v-for="(unit, index) in unitNumbers"
+            v-for="(unit, index) in buildingInfo.unitNumbers"
             :key="index"
             class="unit-item"
           >
@@ -23,8 +23,8 @@
 
         <!-- 左下角数据区域 -->
         <view class="bottom-left-data">
-          <view v-if="residentCount" class="resident-count-container">
-            <text class="resident-count">{{ residentCount }}人</text>
+          <view v-if="buildingInfo.residentCount" class="resident-count-container">
+            <text class="resident-count">{{ buildingInfo.residentCount }}人</text>
           </view>
           <view class="occupancy-rate-container">
             <text class="occupancy-rate">{{ occupancyRate }}%</text>
@@ -43,7 +43,7 @@
     <view class="right face" :style="{
       transform: `rotateY(90deg) translateZ(${rightTranslateZ})`
     }">
-      <view v-if="!disabled && residentCount" :class="['wavy', getRightGradientClass(buildingNumber)]">
+      <view v-if="!disabled && buildingInfo.residentCount" :class="['wavy', getRightGradientClass(buildingNumber)]">
         <view class="wave wave-1"></view>
         <view class="wave wave-2"></view>
         <view class="wave wave-3"></view>
@@ -55,12 +55,22 @@
 
 <script setup>
 import { onMounted, ref, getCurrentInstance, computed } from 'vue'
+import buildingManager from '@/utils/buildingManager.js'
+import dataManager from '@/utils/dataManager.js'
 
 const instance = getCurrentInstance()
 
 const boxRef = ref(null)
 const rightTranslateZ = ref('133px')
 const componentId = ref(Math.random().toString(36).substr(2, 9))
+
+// 响应式数据
+const buildingInfo = ref({
+  unitNumbers: [],
+  residentCount: 0,
+  doorCount: 0,
+  totalCapacity: 0
+})
 
 // Props
 const props = defineProps({
@@ -70,24 +80,8 @@ const props = defineProps({
   },
   buildingNumber: {
     type: Number,
-    default: ''
-  },
-  unitNumbers: {
-    type: Array,
-    default: () => []
-  },
-  residentCount: {
-    type: Number,
-    default: 0
-  },
-  doorCount: {
-    type: Number,
-    default: 0
-  },
-  totalCapacity: {
-    type: Number,
-    default: 0
-  },
+    required: true
+  }
 })
 
 // 随机初始角度（用于波浪动画）
@@ -95,13 +89,13 @@ const randomWaveRotation = ref(Math.random() * 360) // 0-360度
 
 // 计算入住率
 const occupancyRate = computed(() => {
-  const rate = props.totalCapacity > 0 ? props.doorCount / props.totalCapacity : 0
+  const rate = buildingInfo.value.totalCapacity > 0 ? buildingInfo.value.doorCount / buildingInfo.value.totalCapacity : 0
   return Math.round(rate * 100)
 })
 
 // 计算波浪高度（基于入住率）
 const waveHeight = computed(() => {
-  const rate = props.totalCapacity > 0 ? props.doorCount / props.totalCapacity : 0
+  const rate = buildingInfo.value.totalCapacity > 0 ? buildingInfo.value.doorCount / buildingInfo.value.totalCapacity : 0
   // -75% 接近空，-100% 接近满
   return -75 - (rate * 25)
 })
@@ -172,15 +166,47 @@ const getRightGradientClass = (buildingNumber) => {
   return 'right-gradient-yellow'
 }
 
-onMounted(() => {
-	const query = uni.createSelectorQuery().in(instance?.proxy);
-    query.select(`.dice-${componentId.value} .front`).boundingClientRect(function(data) {
-      if (data) {
-        // right: 基于 front 元素的宽度来计算
-        const rightZ = (data.width - 25) / Math.cos(16 * Math.PI / 180)  // (data.width - 25) / cos(15deg)
-        rightTranslateZ.value = `${rightZ}px`
-      }
-    }).exec()
+// 加载楼栋数据
+const loadBuildingData = async () => {
+  try {
+    // 获取楼栋基础信息
+    const stats = await buildingManager.getBuildingStatistics(props.buildingNumber)
+    if (stats) {
+      buildingInfo.value.unitNumbers = stats.units || []
+    }
+
+    // 获取住户数据
+    const residents = await dataManager.getResidentsByBuilding(props.buildingNumber)
+
+    // 计算实际统计
+    const uniqueDoors = new Set(residents.map(r => `${r.floor}_${r.door}`))
+    const totalCapacity = buildingInfo.value.unitNumbers.length * (stats.floors?.length || 1) * 2
+
+    buildingInfo.value = {
+      ...buildingInfo.value,
+      residentCount: residents.length,
+      doorCount: uniqueDoors.size,
+      totalCapacity: totalCapacity
+    }
+  } catch (error) {
+    console.error('加载楼栋数据失败:', error)
+    // 保持默认值
+  }
+}
+
+onMounted(async () => {
+  // 加载楼栋数据
+  await loadBuildingData()
+
+  // 计算尺寸
+  const query = uni.createSelectorQuery().in(instance?.proxy);
+  query.select(`.dice-${componentId.value} .front`).boundingClientRect(function(data) {
+    if (data) {
+      // right: 基于 front 元素的宽度来计算
+      const rightZ = (data.width - 25) / Math.cos(16 * Math.PI / 180)  // (data.width - 25) / cos(15deg)
+      rightTranslateZ.value = `${rightZ}px`
+    }
+  }).exec()
 })
 </script>
 

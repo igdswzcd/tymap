@@ -13,7 +13,7 @@
         <!-- 左下角数据区域 -->
         <view class="bottom-left-data">
           <view class="resident-count-container">
-            <text class="resident-count">{{ residentCount }}人</text>
+            <text class="resident-count">{{ unitInfo.residentCount }}人</text>
           </view>
           <view class="household-rate-container">
             <text class="household-rate">{{ occupancyRate }}%</text>
@@ -27,7 +27,7 @@
 
         <!-- 右上角楼层信息 -->
         <view class="floor-info-corner">
-          <text class="floor-count">{{ floorCount }}层</text>
+          <text class="floor-count">{{ unitInfo.floorCount }}层</text>
         </view>
       </view>
     </view>
@@ -43,12 +43,22 @@
 
 <script setup>
 import { onMounted, ref, getCurrentInstance, computed } from 'vue'
+import buildingManager from '@/utils/buildingManager.js'
+import dataManager from '@/utils/dataManager.js'
 
 const instance = getCurrentInstance()
 
 const boxRef = ref(null)
 const rightTranslateZ = ref('100px')
 const componentId = ref(Math.random().toString(36).substr(2, 9))
+
+// 响应式数据
+const unitInfo = ref({
+  residentCount: 0,
+  doorCount: 0,
+  floorCount: 1,
+  totalCapacity: 2
+})
 
 // Props
 const props = defineProps({
@@ -58,31 +68,15 @@ const props = defineProps({
   },
   unitNumber: {
     type: Number,
-    default: 1
-  },
-  residentCount: {
-    type: Number,
-    default: 0
-  },
-  doorCount: {
-    type: Number,
-    default: 0
-  },
-  floorCount: {
-    type: Number,
-    default: 1
-  },
-  totalCapacity: {
-    type: Number,
-    default: 1
-  },
+    required: true
+  }
 })
 
 // 计算入住率
 const occupancyRate = computed(() => {
   try {
-    const doorCount = Number(props.doorCount) || 0
-    const totalCapacity = Number(props.totalCapacity) || 1
+    const doorCount = Number(unitInfo.value.doorCount) || 0
+    const totalCapacity = Number(unitInfo.value.totalCapacity) || 1
     const rate = totalCapacity > 0 ? doorCount / totalCapacity : 0
     return Math.round(rate * 100)
   } catch (error) {
@@ -95,8 +89,42 @@ const diceStyle = computed(() => {
   return {}
 })
 
-onMounted(() => {
+// 加载单元数据
+const loadUnitData = async () => {
+  try {
+    // 获取基础单元信息
+    const baseInfo = await buildingManager.getUnitStatisticsByUnit(props.unitNumber)
+    if (baseInfo) {
+      unitInfo.value = {
+        ...unitInfo.value,
+        floorCount: baseInfo.floorCount,
+        totalCapacity: baseInfo.totalCapacity
+      }
+    }
+
+    // 获取住户数据（全局查找）
+    const residents = await dataManager.getResidentsByUnitGlobal(props.unitNumber)
+
+    // 计算实际统计
+    const uniqueDoors = new Set(residents.map(r => `${r.floor}_${r.door}`))
+
+    unitInfo.value = {
+      ...unitInfo.value,
+      residentCount: residents.length,
+      doorCount: uniqueDoors.size,
+    }
+  } catch (error) {
+    console.error('加载单元数据失败:', error)
+    // 保持默认值
+  }
+}
+
+onMounted(async () => {
 	try {
+		// 加载单元数据
+		await loadUnitData()
+
+		// 计算尺寸
 		const query = uni.createSelectorQuery().in(instance?.proxy);
 		query.select(`.unit-dice-${componentId.value} .front`).boundingClientRect(function(data) {
 			if (data && data.width) {
@@ -106,7 +134,7 @@ onMounted(() => {
 			}
 		}).exec()
 	} catch (error) {
-		console.log('UnitDice3D尺寸计算失败，使用默认值')
+		console.log('UnitDice3D初始化失败，使用默认值')
 	}
 })
 </script>
