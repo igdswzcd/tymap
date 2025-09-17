@@ -176,8 +176,6 @@ onMounted(() => {
 	const query = uni.createSelectorQuery().in(instance?.proxy);
     query.select(`.dice-${componentId.value} .front`).boundingClientRect(function(data) {
       if (data) {
-        // 基础尺寸
-        const baseSize = 25
         // right: 基于 front 元素的宽度来计算
         const rightZ = (data.width - 25) / Math.cos(16 * Math.PI / 180)  // (data.width - 25) / cos(15deg)
         rightTranslateZ.value = `${rightZ}px`

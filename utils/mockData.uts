@@ -1,6 +1,6 @@
 // 获取用户openid（测试用）
 export function getUserOpenid(): string {
-	return ''
+	return 'test-new-1415'
 }
 
 // 生成合理的测试住户数据，基于buildingManager的配置
@@ -101,7 +101,6 @@ export async function insertMultipleTestResidents() {
 
 		// 生成随机入住率 (10% ~ 100%)
 		const occupancyRate = Math.random() * 0.9 + 0.1
-		console.log(`${building.name} 入住率: ${(occupancyRate * 100).toFixed(1)}%`)
 
 		// 计算总的可能住户数量
 		const totalPossibleResidents = buildingUnits.length * buildingFloors.length * 2 // 每层2户

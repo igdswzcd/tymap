@@ -121,6 +121,27 @@ class DataManager {
 		}
 	}
 
+	// 清理非持久化缓存数据（入住流程相关的临时缓存）
+	async clearNonPersistentCache() {
+		try {
+			const cacheKeys = [
+				'checkin_process_step',
+				'checkin_selected_building',
+				'checkin_selected_unit',
+				'checkin_selected_floor',
+				'checkin_selected_door',
+				'checkin_user_info'
+			]
+
+			for (const key of cacheKeys) {
+				await uni.removeStorageSync(key)
+			}
+			console.log('非持久化缓存数据已清理')
+		} catch (error) {
+			console.error('清理非持久化缓存失败:', error)
+		}
+	}
+
 	// 强制刷新数据（从数据库重新加载）
 	async refreshData() {
 		try {

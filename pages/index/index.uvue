@@ -32,7 +32,7 @@
 					@tap="handleCheckin"
 				>
 					<view class="button-content">
-						<text class="button-text">入住</text>
+						<text class="button-text">{{ checkinButtonText }}</text>
 						<text class="button-text button-exclamation">!!</text>
 					</view>
 				</view>
@@ -98,6 +98,9 @@ const userRole = reactive({
 	openid: 'openid_2_36_1_1'
 })
 
+// 入住按钮文本
+const checkinButtonText = ref('入住')
+
 // 用户信息显示
 const userInfo = reactive({
 	location: '2-36-1-1',
@@ -125,6 +128,7 @@ const onBuildingTap = (building: any) => {
 	// 事件处理已在BuildingView组件内部完成
 }
 
+
 // 申请列表按钮点击
 const handleRequestList = () => {
 	console.log('查看申请列表')
@@ -132,9 +136,27 @@ const handleRequestList = () => {
 }
 
 // 入住按钮点击
-const handleCheckin = () => {
+const handleCheckin = async () => {
 	console.log('申请入住')
-	// 跳转到入住申请页面
+	try {
+		// 将当前状态（入住中）同步写入缓存
+		await uni.setStorageSync('checkin_process_step', 'selecting_building')
+		await uni.setStorageSync('checkin_user_info', {
+			openid: userRole.openid,
+			startTime: Date.now()
+		})
+
+		console.log('入住状态已写入缓存')
+
+		// 更新按钮文本为"选择楼栋"
+		checkinButtonText.value = '选择楼栋'
+	} catch (error) {
+		console.error('设置入住状态失败:', error)
+		uni.showToast({
+			title: '入住流程启动失败',
+			icon: 'none'
+		})
+	}
 }
 
 // 用户信息按钮点击
