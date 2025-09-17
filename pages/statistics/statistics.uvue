@@ -33,13 +33,13 @@
 
 <script setup lang="uts">
 import { ref, reactive, onMounted } from 'vue'
-import { getCommunityStats } from '@/utils/buildingData.js'
+import buildingManager from '@/utils/buildingManager.js'
+import dataManager from '@/utils/dataManager.js'
 import { getUserOpenid } from '@/utils/mockData.uts'
 
-const communityStats = ref(getCommunityStats())
 const statistics = reactive({
 	totalResidents: 0,
-	totalCapacity: communityStats.value.totalDoors,
+	totalCapacity: 0,
 	occupancyRate: 0
 })
 const userInfo = ref({
@@ -55,19 +55,21 @@ const isAdmin = ref(false)
 
 // 计算入住率
 const calculateOccupancyRate = (residentCount: number): number => {
-	const totalCapacity = statistics.totalCapacity || communityStats.value.totalDoors
+	const totalCapacity = statistics.totalCapacity || 0
 	return totalCapacity > 0 ? Math.round((residentCount / totalCapacity) * 100) : 0
 }
 
 // 加载住户统计数据
 const loadResidentStatistics = async (): Promise<void> => {
 	try {
-		const db = uniCloud.databaseForJQL()
+		// 获取建筑统计信息
+		const buildingStats = await buildingManager.getBuildingStatistics()
+		statistics.totalCapacity = buildingStats?.totalDoors || 0
 
-		// 总住户数
-		const totalRes = await db.collection('residents').count()
-		statistics.totalResidents = totalRes.total || 0
-		statistics.occupancyRate = calculateOccupancyRate(totalRes.total || 0)
+		// 获取住户统计信息
+		const residentStats = await dataManager.getStatistics()
+		statistics.totalResidents = residentStats?.total || 0
+		statistics.occupancyRate = calculateOccupancyRate(residentStats?.total || 0)
 	} catch (error) {
 		console.error('加载住户统计数据失败:', error)
 	}
@@ -77,16 +79,9 @@ const loadResidentStatistics = async (): Promise<void> => {
 const loadUserInfo = async (): Promise<void> => {
 	try {
 		const openid = await getUserOpenid()
+		const userData = await dataManager.getResidentByOpenid(openid)
 
-		const db = uniCloud.databaseForJQL()
-		const res = await db.collection('residents')
-			.where({
-				openid: openid
-			})
-			.get()
-
-		if (res.data && res.data.length > 0) {
-			const userData = res.data[0]
+		if (userData) {
 			userInfo.value = {
 				nickname: userData.nickname || '',
 				phone: userData.phone || '',
@@ -105,12 +100,12 @@ const loadUserInfo = async (): Promise<void> => {
 
 // 统一加载数据
 const loadData = async (): Promise<void> => {
-	loadResidentStatistics()
-	loadUserInfo()
+	await loadResidentStatistics()
+	await loadUserInfo()
 }
 
-onMounted(() => {
-	loadData()
+onMounted(async () => {
+	await loadData()
 })
 </script>
 

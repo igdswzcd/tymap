@@ -99,10 +99,10 @@
 
 <script setup lang="uts">
 import { ref, reactive, onMounted, computed } from 'vue'
-import { generateBuildings, getBuildingsByRow, getAllRows } from '@/utils/buildingData.js'
+import buildingManager from '@/utils/buildingManager.js'
+import dataManager from '@/utils/dataManager.js'
 import Dice3D from '@/components/Dice3D.uvue'
-import { getBuildingResidentCounts, getBuildingDoorCounts, insertMultipleTestResidents } from '@/utils/mockData.uts'
-import { calculateBuildingCapacity } from '@/utils/buildingData.js'
+import { insertMultipleTestResidents } from '@/utils/mockData.uts'
 
 // 定义事件
 const emit = defineEmits(['buildingTap'])
@@ -115,19 +115,17 @@ const isAnimating = ref(false)
 const buildingResidentCounts = ref<Record<string, number>>({})
 const buildingDoorCounts = ref<Record<string, number>>({})
 const buildingCapacities = ref<Record<string, number>>({})
-
-// 生成楼栋数据
-const allBuildings = generateBuildings()
-const flatBuildings = allBuildings.filter(b => b.type === 'flat')
-const villaBuildings = allBuildings.filter(b => b.type === 'villa')
+const allBuildings = ref<any[]>([])
+const flatBuildings = ref<any[]>([])
+const villaBuildings = ref<any[]>([])
 
 // 计算行数据
 const flatRows = computed(() => {
 	const rows: Array<{ number: number; buildings: any[] }> = []
-	const maxRow = Math.max(...flatBuildings.map(b => b.row))
+	const maxRow = Math.max(...flatBuildings.value.map(b => b.row))
 
 	for (let i = 0; i <= maxRow; i++) {
-		const rowBuildings = flatBuildings.filter(b => b.row === i)
+		const rowBuildings = flatBuildings.value.filter(b => b.row === i)
 		if (rowBuildings.length > 0) {
 			rows.push({
 				number: i,
@@ -140,10 +138,10 @@ const flatRows = computed(() => {
 
 const villaRows = computed(() => {
 	const rows: Array<{ number: number; buildings: any[] }> = []
-	const maxRow = Math.max(...villaBuildings.map(b => b.row))
+	const maxRow = Math.max(...villaBuildings.value.map(b => b.row))
 
 	for (let i = 0; i <= maxRow; i++) {
-		const rowBuildings = villaBuildings.filter(b => b.row === i)
+		const rowBuildings = villaBuildings.value.filter(b => b.row === i)
 		if (rowBuildings.length > 0) {
 			rows.push({
 				number: i,
@@ -153,6 +151,19 @@ const villaRows = computed(() => {
 	}
 	return rows
 })
+
+// 加载楼栋数据
+const loadBuildingData = async () => {
+	try {
+		const buildings = await buildingManager.getAllBuildings()
+		allBuildings.value = buildings
+		flatBuildings.value = buildings.filter(b => b.type === 'flat')
+		villaBuildings.value = buildings.filter(b => b.type === 'villa')
+		console.log('楼栋数据加载完成')
+	} catch (error) {
+		console.error('加载楼栋数据失败:', error)
+	}
+}
 
 // 触摸事件处理
 const handleTouchStart = (e: any) => {
@@ -222,16 +233,18 @@ const initializeTestData = async () => {
 		// 先尝试插入测试数据（insertMultipleTestResidents 函数内部已包含清空操作）
 		await insertMultipleTestResidents()
 		console.log('测试数据初始化成功')
+		// 刷新dataManager缓存
+		await dataManager.refreshData()
 	} catch (error) {
 		// 如果插入失败（可能数据已存在），继续执行
-		console.log('测试数据初始化跳过:', error.message)
+		console.log('测试数据初始化跳过:', (error as any).message)
 	}
 }
 
 // 获取住户数量数据
 const loadBuildingResidentCounts = async () => {
 	try {
-		const counts = await getBuildingResidentCounts()
+		const counts = await dataManager.getBuildingResidentCounts()
 		buildingResidentCounts.value = counts
 	} catch (error) {
 		console.error('获取住户数量失败:', error)
@@ -241,7 +254,7 @@ const loadBuildingResidentCounts = async () => {
 // 获取door数量数据
 const loadBuildingDoorCounts = async () => {
 	try {
-		const counts = await getBuildingDoorCounts()
+		const counts = await dataManager.getBuildingDoorCounts()
 		buildingDoorCounts.value = counts
 	} catch (error) {
 		console.error('获取door数量失败:', error)
@@ -249,12 +262,15 @@ const loadBuildingDoorCounts = async () => {
 }
 
 // 计算建筑容量数据
-const loadBuildingCapacities = () => {
+const loadBuildingCapacities = async () => {
 	try {
 		const capacities: Record<string, number> = {}
-		allBuildings.forEach(building => {
-			capacities[building.building] = calculateBuildingCapacity(building.building)
-		})
+		for (const building of allBuildings.value) {
+			const unitCount = await buildingManager.getUnitCount(building.building)
+			const floors = await buildingManager.getFloors(building.building)
+			const doorsPerFloor = 2 // 每层2个门
+			capacities[building.building] = unitCount * floors.length * doorsPerFloor
+		}
 		buildingCapacities.value = capacities
 	} catch (error) {
 		console.error('计算建筑容量失败:', error)
@@ -266,20 +282,25 @@ defineExpose({
 	loadBuildingResidentCounts,
 	loadBuildingDoorCounts,
 	loadBuildingCapacities,
+	loadBuildingData,
 	initializeTestData
 })
 
 // 生命周期
 onMounted(async () => {
-	console.log('楼栋视图初始化')
-
-	// 先初始化测试数据
+	// 初始化测试数据
 	await initializeTestData()
+	// 初始化building管理器（加载building数据到内存）
+	console.log('初始化building管理器...')
+	await buildingManager.init()
+	// 先加载楼栋数据
+	await loadBuildingData()
+
 
 	// 然后获取各种数据
 	loadBuildingResidentCounts()
 	loadBuildingDoorCounts()
-	loadBuildingCapacities()
+	await loadBuildingCapacities()
 })
 </script>
 

@@ -70,7 +70,6 @@ const randomWaveRotation = ref(Math.random() * 360) // 0-360度
 const waveHeight = computed(() => {
   const occupancyRate = props.totalCapacity > 0 ? props.doorCount / props.totalCapacity : 0
   // -75% 接近空，-100% 接近满
-  console.log('wtf', props.buildingNumber, -75 - (occupancyRate * 25))
   return -75 - (occupancyRate * 25)
 })
 
@@ -141,7 +140,7 @@ const getRightGradientClass = (buildingNumber) => {
 }
 
 onMounted(() => {
-	const query = uni.createSelectorQuery().in(instance.proxy);
+	const query = uni.createSelectorQuery().in(instance?.proxy);
     query.select(`.dice-${componentId.value} .front`).boundingClientRect(function(data) {
       if (data) {
         // 基础尺寸

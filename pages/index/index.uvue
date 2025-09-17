@@ -45,14 +45,16 @@
 import { ref, reactive, onMounted } from 'vue'
 import BuildingView from '@/components/BuildingView.uvue'
 import { getUserOpenid } from '@/utils/mockData.uts'
+import dataManager from '@/utils/dataManager.js'
+import buildingManager from '@/utils/buildingManager.js'
 
 const buildingViewRef = ref()
 
-// 用户角色状态 - 临时设置为超级管理员
+// 用户角色状态
 const userRole = reactive({
 	isResident: true,
 	isSuperAdmin: true,
-	openid: 'test_openid_001'
+	openid: ''
 })
 
 // 楼栋点击事件
@@ -64,19 +66,13 @@ const onBuildingTap = (building: any) => {
 // 申请列表按钮点击
 const handleRequestList = () => {
 	console.log('查看申请列表')
-	uni.showToast({
-		title: '申请列表功能开发中',
-		icon: 'none'
-	})
+	// 跳转到申请列表页面
 }
 
 // 入住按钮点击
 const handleCheckin = () => {
 	console.log('申请入住')
-	uni.showToast({
-		title: '入住申请功能开发中',
-		icon: 'none'
-	})
+	// 跳转到入住申请页面
 }
 
 // 第二个audit按钮点击
@@ -88,25 +84,18 @@ const handleSecondAction = () => {
 	})
 }
 
+
 // 检查用户身份
 const checkUserRole = async () => {
-	// 临时跳过身份检查，直接使用手动设置的状态
-	console.log('用户身份(临时设置):', userRole)
-
-	/* 实际身份检查逻辑（暂时注释）
 	try {
 		const openid = await getUserOpenid()
-		userRole.openid = openid
+		userRole.openid = openid as string
 
-		// 查询用户是否在residents表中
-		const db = uniCloud.databaseForJQL()
-		const result = await db.collection('residents')
-			.where({ openid: openid })
-			.get()
+		// 使用dataManager查询用户信息（从缓存读取）
+		const userData = await dataManager.getResidentByOpenid(openid)
 
-		if (result.data && result.data.length > 0) {
-			const userData = result.data[0]
-			userRole.isResident = true
+		if (userData) {
+			userRole.isResident = userData.apply_status === 'trusted'
 			userRole.isSuperAdmin = userData.is_super_admin || false
 			console.log('用户身份:', userRole)
 		} else {
@@ -119,13 +108,27 @@ const checkUserRole = async () => {
 		userRole.isResident = false
 		userRole.isSuperAdmin = false
 	}
-	*/
 }
 
 // 生命周期
 onMounted(async () => {
-	// 检查用户身份
-	await checkUserRole()
+	try {
+		// 初始化数据管理器（加载residents数据到缓存），传入uniCloud实例
+		console.log('初始化数据管理器...')
+		await dataManager.init(uniCloud)
+
+		// 检查用户身份
+		console.log('检查用户身份...')
+		await checkUserRole()
+
+		console.log('页面初始化完成')
+	} catch (error) {
+		console.error('页面初始化失败:', error)
+		uni.showToast({
+			title: '初始化失败',
+			icon: 'none'
+		})
+	}
 })
 </script>
 
