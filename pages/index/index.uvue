@@ -25,35 +25,42 @@
 					</view>
 				</view>
 
-				<!-- 入住流程 breadcrumb 导航 -->
-				<view
-					v-if="!userRole.isResident && checkinBreadcrumb.length > 0"
-					class="breadcrumb-container"
-				>
-					<view
-						v-for="(breadcrumb, index) in checkinBreadcrumb"
-						:key="index"
-						class="breadcrumb-item"
-						:class="{ 'clickable': true }"
-						@tap="handleBreadcrumbTap(index)"
-					>
-						<text class="breadcrumb-text">{{ breadcrumb.name }}</text>
-						<text
-							v-if="index < checkinBreadcrumb.length - 1"
-							class="breadcrumb-separator"
-						>></text>
-					</view>
-				</view>
-
-				<!-- 入住按钮 - 只在idle状态下显示 -->
+				<!-- 入住流程内部绶带面包屑 -->
 				<view
 					v-if="!userRole.isResident"
-					class="action-button checkin-button"
-					@tap="handleCheckin"
+					class="ribbon-breadcrumb-container"
 				>
-					<view class="button-content">
-						<text class="button-text">{{ checkinButtonText }}</text>
-						<text class="button-text button-exclamation">!!</text>
+					<!-- 主要入住按钮（包含内部绶带） -->
+					<view
+						class="action-button checkin-button"
+						@tap="handleMainCheckinTap"
+					>
+						<!-- 按钮左侧的绶带面包屑 -->
+						<view
+							v-if="checkinBreadcrumb.length > 0"
+							class="internal-ribbon-breadcrumbs"
+						>
+							<view
+								v-for="(breadcrumb, index) in checkinBreadcrumb"
+								:key="index"
+								class="internal-ribbon-item"
+								:class="getRibbonItemClass(index, checkinBreadcrumb.length)"
+								@tap.stop="handleBreadcrumbTap(index)"
+							>
+								<view class="internal-ribbon-content">
+									<text class="internal-ribbon-text">{{ breadcrumb.name }}</text>
+								</view>
+							</view>
+						</view>
+
+						<!-- 按钮内容区域 -->
+						<view
+							class="button-content"
+							:class="{ 'with-internal-ribbon': checkinBreadcrumb.length > 0 }"
+						>
+							<text class="button-text">{{ checkinButtonText }}</text>
+							<text class="button-text button-exclamation">!!</text>
+						</view>
 					</view>
 				</view>
 
@@ -146,6 +153,25 @@ const getAvatarText = (resident: any) => {
 	return resident.nickname.charAt(0)
 }
 
+// 获取绶带项的class
+const getRibbonItemClass = (index: number, totalCount: number) => {
+	const classes = []
+
+	if (totalCount === 1) {
+		// 只有一个面包屑时，使用单独的样式
+		classes.push('internal-ribbon-first')
+	} else {
+		// 多个面包屑时，正常分配first和last
+		if (index === 0) {
+			classes.push('internal-ribbon-first')
+		} else if (index === totalCount - 1) {
+			classes.push('internal-ribbon-last')
+		}
+	}
+
+	return classes
+}
+
 // 楼栋点击事件
 const onBuildingTap = (building: any) => {
 	console.log('点击楼栋:', building)
@@ -157,6 +183,79 @@ const onBuildingTap = (building: any) => {
 const handleRequestList = () => {
 	console.log('查看申请列表')
 	// 跳转到申请列表页面
+}
+
+// 主要入住按钮点击
+const handleMainCheckinTap = async () => {
+	console.log('主要入住按钮点击')
+
+	const currentStep = checkinStore.getState().step
+	console.log('当前步骤:', currentStep)
+
+	switch (currentStep) {
+		case 'idle':
+			// 启动入住流程
+			await handleCheckin()
+			break
+		case 'selecting_building':
+			// 在楼栋选择状态，可以返回或重置
+			console.log('楼栋选择状态，点击主按钮返回首页')
+			checkinStore.reset()
+			break
+		case 'selecting_unit':
+			// 在单元选择状态，点击主按钮返回楼栋选择
+			console.log('单元选择状态，点击主按钮返回楼栋选择')
+			checkinStore.goToLevel('building')
+			break
+		case 'selecting_floor_door':
+			// 在楼层门牌选择状态，点击主按钮返回单元选择
+			console.log('楼层门牌选择状态，点击主按钮返回单元选择')
+			checkinStore.goToLevel('unit')
+			break
+		case 'confirming':
+			// 在确认状态，点击主按钮提交申请
+			console.log('确认状态，点击主按钮提交申请')
+			await handleSubmitApplication()
+			break
+		default:
+			// 默认重置
+			checkinStore.reset()
+	}
+}
+
+// 提交入住申请
+const handleSubmitApplication = async () => {
+	try {
+		const state = checkinStore.getState()
+		if (state.selectedBuilding && state.selectedUnit && state.selectedFloor && state.selectedDoor) {
+			console.log('提交入住申请:', {
+				building: state.selectedBuilding,
+				unit: state.selectedUnit,
+				floor: state.selectedFloor,
+				door: state.selectedDoor
+			})
+
+			// TODO: 实际提交申请到数据库
+			uni.showToast({
+				title: '申请提交成功',
+				icon: 'success'
+			})
+
+			// 重置状态
+			checkinStore.reset()
+		} else {
+			uni.showToast({
+				title: '请完成所有选择',
+				icon: 'none'
+			})
+		}
+	} catch (error) {
+		console.error('提交申请失败:', error)
+		uni.showToast({
+			title: '提交失败',
+			icon: 'none'
+		})
+	}
 }
 
 // 入住按钮点击
@@ -181,8 +280,8 @@ const handleBreadcrumbTap = (index: number) => {
 	const breadcrumb = checkinBreadcrumb.value[index]
 	console.log('点击breadcrumb:', breadcrumb)
 
-	// 点击任意breadcrumb都回到上一级
-	checkinStore.goBack()
+	// 根据点击的breadcrumb类型直接跳转到对应层级
+	checkinStore.goToLevel(breadcrumb.type)
 }
 
 // 第二个audit按钮点击
@@ -337,7 +436,7 @@ onMounted(async () => {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	padding: 20rpx 20rpx 40rpx 20rpx;
+	padding: 10rpx 10rpx 20rpx 10rpx;
 	box-sizing: border-box;
 }
 
@@ -348,6 +447,7 @@ onMounted(async () => {
 	gap: 20rpx;
 	width: 100%;
 	max-width: 750rpx;
+	padding: 10rpx;
 }
 
 
@@ -392,6 +492,7 @@ onMounted(async () => {
 
 /* 入住按钮 - 占4份，绿色渐变 */
 .checkin-button {
+	height: 100%;
 	border-radius: 100rpx;
 	flex: 4;
 	background: linear-gradient(135deg, #00F260, #0575E6);
@@ -632,56 +733,177 @@ onMounted(async () => {
 	filter: drop-shadow(2rpx 2rpx 20rpx yellow);
 }
 
-/* Breadcrumb导航样式 */
-.breadcrumb-container {
+/* 内部绶带面包屑容器 */
+.ribbon-breadcrumb-container {
 	border-radius: 100rpx;
 	flex: 4;
-	background: linear-gradient(135deg, #667eea, #764ba2);
 	min-height: 140rpx;
-	box-shadow:
-		5rpx 8rpx 8rpx rgba(0, 0, 0, 0.16),
-		2rpx 3rpx 6rpx rgba(0, 0, 0, 0.1);
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	justify-content: center;
-	padding: 0 40rpx;
-	gap: 10rpx;
+	width: 100%;
 }
 
-.breadcrumb-item {
+/* 按钮内部绶带面包屑组 */
+.internal-ribbon-breadcrumbs {
+	height: 100%;
+	position: absolute;
+	left: 60rpx;
+	top: 50%;
+	transform: translateY(-50%);
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	padding: 10rpx 20rpx;
-	border-radius: 20rpx;
-	transition: all 0.3s ease;
+	z-index: 5;
+}
+
+/* 内部绶带项 - 平行四边形效果 */
+.internal-ribbon-item {
+	position: relative;
+	height: 100%;
+	min-width: 140rpx;
+	max-width: 160rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-right: -45rpx; /* 重叠效果 */
+	clip-path: polygon(45rpx 0, 100% 0, calc(100% - 45rpx) 100%, 0 100%);
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 	cursor: pointer;
 }
 
-.breadcrumb-item:active {
-	transform: scale(0.95);
-	background: rgba(255, 255, 255, 0.2);
+/* 内部绶带内容 */
+.internal-ribbon-content {
+	width: 100%;
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0 20rpx;
+	position: relative;
+	z-index: 2;
 }
 
-.breadcrumb-text {
-	font-size: 36rpx;
-	font-weight: 600;
+/* 内部绶带文字 */
+.internal-ribbon-text {
+	font-size: 24rpx;
+	font-weight: 700;
 	color: #ffffff;
-	transition: all 0.3s ease;
-	opacity: 0.9;
+	text-shadow: 0 1rpx 2rpx rgba(0, 0, 0, 0.4);
+	white-space: nowrap;
+	position: relative;
+	z-index: 3;
 }
 
-.breadcrumb-item:active .breadcrumb-text {
-	opacity: 1;
+/* 第一个内部绶带 - 第一个面包屑 */
+.internal-ribbon-item.internal-ribbon-first {
+	background: #ddd !important;
+	border-left: none;
+	margin-left: 0;
 }
 
-.breadcrumb-separator {
-	font-size: 28rpx;
-	font-weight: bold;
-	color: rgba(255, 255, 255, 0.7);
-	margin: 0 10rpx;
-	transition: all 0.3s ease;
+.internal-ribbon-item.internal-ribbon-first::before {
+	content: '';
+	position: absolute;
+	left: -15rpx;
+	top: 0;
+	width: 15rpx;
+	height: 100%;
+	background: linear-gradient(135deg, #FF6B6B, #C44569) !important;
+	clip-path: polygon(0 0, 0 100%, 100% 50%);
+	z-index: 1;
+}
+
+/* 当只有一个面包屑时（只有first），添加右侧斜边 */
+.internal-ribbon-item.internal-ribbon-first:last-child {
+	margin-right: 20rpx;
+}
+
+.internal-ribbon-item.internal-ribbon-first:last-child::after {
+	content: '';
+	position: absolute;
+	right: -15rpx;
+	top: 0;
+	width: 15rpx;
+	height: 100%;
+	background: linear-gradient(135deg, #FF6B6B, #C44569) !important;
+	clip-path: polygon(100% 0, 0 50%, 100% 100%);
+	z-index: 1;
+}
+
+/* 第二个内部绶带 - 第二个面包屑 */
+.internal-ribbon-item.internal-ribbon-last {
+	background: linear-gradient(135deg, #4ECDC4, #44A08D) !important;
+	border-right: none;
+	margin-right: 20rpx;
+}
+
+.internal-ribbon-item.internal-ribbon-last::after {
+	content: '';
+	position: absolute;
+	right: -15rpx;
+	top: 0;
+	width: 15rpx;
+	height: 100%;
+	background: linear-gradient(135deg, #4ECDC4, #44A08D) !important;
+	clip-path: polygon(100% 0, 0 50%, 100% 100%);
+	z-index: 1;
+}
+
+/* 按钮内容适配内部绶带 */
+.button-content.with-internal-ribbon {
+	margin-left: 160rpx; /* 为内部绶带留出空间 */
+	transition: margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 内部绶带交互效果 */
+.internal-ribbon-item:active {
+	transform: translateY(1rpx) scale(0.98);
+}
+
+.internal-ribbon-item:hover {
+	transform: translateY(-1rpx);
+	filter: brightness(1.1);
+}
+
+/* 内部绶带层次阴影 */
+.internal-ribbon-item {
+	box-shadow:
+		1rpx 2rpx 4rpx rgba(0, 0, 0, 0.3),
+		inset 0 1rpx 0 rgba(255, 255, 255, 0.2);
+}
+
+/* 内部绶带动画效果 */
+@keyframes internalRibbonSlideIn {
+	0% {
+		opacity: 0;
+		transform: translateX(-20rpx) translateY(-50%);
+	}
+	100% {
+		opacity: 1;
+		transform: translateX(0) translateY(-50%);
+	}
+}
+
+.internal-ribbon-breadcrumbs {
+	animation: internalRibbonSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 移除nth-child选择器，避免样式冲突 */
+
+/* 内部绶带光泽效果 */
+.internal-ribbon-item::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 30%;
+	background: linear-gradient(
+		to bottom,
+		rgba(255, 255, 255, 0.4) 0%,
+		rgba(255, 255, 255, 0.1) 50%,
+		rgba(255, 255, 255, 0) 100%
+	);
+	pointer-events: none;
+	z-index: 4;
 }
 
 

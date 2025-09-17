@@ -1,0 +1,348 @@
+<template>
+  <view class="floor-door-view">
+    <!-- 主要内容区域 -->
+    <view class="content">
+      <!-- 楼层门牌列表 -->
+      <scroll-view
+        class="floor-door-scroll"
+        scroll-y="true"
+        :show-scrollbar="true"
+      >
+        <view class="floor-container">
+          <view
+            v-for="floor in sortedFloors"
+            :key="floor.floor"
+            class="floor-item"
+          >
+            <!-- 楼层标题 -->
+            <view class="floor-title">
+              <text class="floor-text">{{ floor.floor }}层</text>
+            </view>
+
+            <!-- 该楼层的门牌列表 -->
+            <view class="doors-container">
+              <view
+                v-for="door in sortedDoors(floor.doors)"
+                :key="door.door"
+                class="door-item"
+                :class="{
+                  'occupied': door.isOccupied,
+                  'available': !door.isOccupied,
+                  'selected': isSelected(floor.floor, door.door)
+                }"
+                @tap="onDoorTap(floor.floor, door)"
+              >
+                <view class="door-content">
+                  <text class="door-number">{{ door.door }}号</text>
+                  <view v-if="door.isOccupied" class="resident-info">
+                    <text class="resident-text">{{ getResidentText(door.resident) }}</text>
+                  </view>
+                  <view v-else class="available-indicator">
+                    <text class="available-text">空置</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { ref, computed, onMounted } from 'vue'
+import dataManager from '@/utils/dataManager.js'
+
+// Props
+const props = defineProps({
+  buildingNumber: {
+    type: [Number, String],
+    required: true
+  },
+  unitNumber: {
+    type: [Number, String],
+    required: true
+  }
+})
+
+// Emits
+const emit = defineEmits(['close', 'doorTap'])
+
+// 响应式数据
+const floors = ref<any[]>([]) // 楼层数据
+const selectedFloor = ref<number | null>(null)
+const selectedDoor = ref<any>(null)
+
+// 计算排序后的楼层数据
+const sortedFloors = computed(() => {
+  return [...floors.value].sort((a, b) => a.floor - b.floor)
+})
+
+// 排序门牌数据
+const sortedDoors = (doors: any[]) => {
+  return [...doors].sort((a, b) => a.door - b.door)
+}
+
+// 检查是否选中
+const isSelected = (floor: number, door: any) => {
+  return selectedFloor.value === floor && selectedDoor.value?.door === door.door
+}
+
+// 获取住户显示文字
+const getResidentText = (resident: any) => {
+  if (!resident || !resident.nickname) return '已入住'
+  return resident.nickname
+}
+
+// 获取楼栋单元楼层门牌数据
+const loadFloorDoorData = async () => {
+  try {
+    console.log('加载楼层门牌数据:', props.buildingNumber, props.unitNumber)
+
+    // 获取该楼栋单元的所有住户数据
+    const residents = await dataManager.getResidentsByBuildingUnit(
+      props.buildingNumber,
+      props.unitNumber
+    )
+
+    // 按楼层分组
+    const floorMap = new Map()
+
+    residents.forEach(resident => {
+      const floorKey = resident.floor
+      if (!floorMap.has(floorKey)) {
+        floorMap.set(floorKey, {
+          floor: floorKey,
+          doors: []
+        })
+      }
+
+      // 检查该门是否已有住户
+      const existingDoor = floorMap.get(floorKey).doors.find(
+        (d: any) => d.door === resident.door
+      )
+
+      if (existingDoor) {
+        existingDoor.resident = resident
+      } else {
+        floorMap.get(floorKey).doors.push({
+          door: resident.door,
+          isOccupied: true,
+          resident: resident
+        })
+      }
+    })
+
+    // 转换为数组并补充空置门牌
+    const floorData = Array.from(floorMap.values())
+
+    // 为每层补充可能的空置门牌（假设每层最多4户）
+    floorData.forEach(floor => {
+      const existingDoors = floor.doors.map((d: any) => d.door)
+      const maxDoors = 4
+
+      for (let i = 1; i <= maxDoors; i++) {
+        if (!existingDoors.includes(i)) {
+          floor.doors.push({
+            door: i,
+            isOccupied: false,
+            resident: null
+          })
+        }
+      }
+    })
+
+    floors.value = floorData
+    console.log('楼层门牌数据加载完成:', floors.value)
+
+  } catch (error) {
+    console.error('加载楼层门牌数据失败:', error)
+    floors.value = []
+  }
+}
+
+// 门牌点击事件
+const onDoorTap = (floor: number, door: any) => {
+  console.log('点击门牌:', floor, door)
+
+  selectedFloor.value = floor
+  selectedDoor.value = door
+
+  emit('doorTap', {
+    floor: floor,
+    door: door.door,
+    isOccupied: door.isOccupied,
+    resident: door.resident
+  })
+}
+
+// 关闭视图
+const handleClose = () => {
+  emit('close')
+}
+
+// 对外暴露的方法
+defineExpose({
+  loadFloorDoorData,
+  selectedFloor,
+  selectedDoor
+})
+
+// 生命周期
+onMounted(async () => {
+  await loadFloorDoorData()
+})
+</script>
+
+<style>
+.floor-door-view {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #f8f9fa;
+  z-index: 200;
+}
+
+.content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.floor-door-scroll {
+  flex: 1;
+  width: 100%;
+}
+
+.floor-container {
+  padding: 20rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 30rpx;
+}
+
+.floor-item {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.floor-title {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  padding: 16rpx 24rpx;
+  border-radius: 16rpx;
+  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+}
+
+.floor-text {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #ffffff;
+  text-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.2);
+}
+
+.doors-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16rpx;
+}
+
+.door-item {
+  background: #ffffff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+  border: 2rpx solid transparent;
+  transition: all 0.3s ease;
+  min-height: 120rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.door-item.available {
+  border-color: #28a745;
+  background: linear-gradient(135deg, #f8fff9, #e8f5e8);
+}
+
+.door-item.occupied {
+  border-color: #6c757d;
+  background: linear-gradient(135deg, #ffffff, #f8f9fa);
+}
+
+.door-item.selected {
+  border-color: #007bff;
+  background: linear-gradient(135deg, #e7f3ff, #cce7ff);
+  transform: scale(1.02);
+  box-shadow: 0 4rpx 16rpx rgba(0, 123, 255, 0.3);
+}
+
+.door-item:active {
+  transform: scale(0.98);
+}
+
+.door-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.door-number {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #2c3e50;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.resident-info {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.resident-text {
+  font-size: 24rpx;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.available-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.available-text {
+  font-size: 24rpx;
+  color: #28a745;
+  font-weight: 600;
+  background: rgba(40, 167, 69, 0.1);
+  padding: 4rpx 12rpx;
+  border-radius: 12rpx;
+}
+
+/* 空状态 */
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx;
+  color: #6c757d;
+  font-size: 32rpx;
+  text-align: center;
+}
+
+/* 加载状态 */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx;
+  color: #6c757d;
+  font-size: 28rpx;
+}
+</style>

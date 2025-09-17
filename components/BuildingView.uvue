@@ -96,6 +96,15 @@
 			@close="handleUnitViewClose"
 			@unitTap="onUnitTap"
 		/>
+
+		<!-- 楼层门牌视图组件 -->
+		<FloorDoorView
+			v-if="shouldShowFloorDoorView"
+			:buildingNumber="storeState.selectedBuilding"
+			:unitNumber="storeState.selectedUnit"
+			@close="handleFloorDoorViewClose"
+			@doorTap="onDoorTap"
+		/>
 	</view>
 </template>
 
@@ -105,6 +114,7 @@ import buildingManager from '@/utils/buildingManager.js'
 import dataManager from '@/utils/dataManager.js'
 import Dice3D from '@/components/Dice3D.uvue'
 import BuildingUnitView from '@/components/BuildingUnitView.uvue'
+import FloorDoorView from '@/components/FloorDoorView.uvue'
 import { insertMultipleTestResidents } from '@/utils/mockData.uts'
 import checkinStore from '@/store/index.uts'
 
@@ -128,6 +138,13 @@ const storeState = checkinStore.getReactiveState()
 // 根据store状态计算是否应该显示单元视图
 const shouldShowUnitView = computed(() => {
 	return storeState.step === 'selecting_unit' && storeState.selectedBuilding !== null
+})
+
+// 根据store状态计算是否应该显示楼层门牌视图
+const shouldShowFloorDoorView = computed(() => {
+	return storeState.step === 'selecting_floor_door' &&
+		   storeState.selectedBuilding !== null &&
+		   storeState.selectedUnit !== null
 })
 
 // 根据store状态同步选中的楼栋
@@ -309,10 +326,24 @@ const handleUnitViewClose = () => {
 const onUnitTap = (unit: any) => {
 	console.log('点击单元:', unit)
 
-	// 使用全局状态管理选择单元
+	// 使用全局状态管理选择单元并进入楼层门牌选择
 	checkinStore.selectUnit(unit.unit)
+}
 
-	// TODO: 处理单元选择逻辑，可以进一步显示楼层和门
+// 楼层门牌视图关闭事件
+const handleFloorDoorViewClose = () => {
+	// 使用全局状态管理返回上级
+	checkinStore.goBack()
+}
+
+// 门牌点击事件
+const onDoorTap = (door: any) => {
+	console.log('点击门牌:', door)
+
+	// 使用全局状态管理选择门牌
+	checkinStore.selectFloorDoor(door.floor, door.door)
+
+	// TODO: 处理门牌选择后的逻辑，可能跳转到申请页面
 }
 
 // 对外暴露的方法
@@ -334,6 +365,11 @@ watch(storeState, (newState, oldState) => {
 	if (newState.step !== 'selecting_unit') {
 		unitViewVisible.value = false
 		selectedBuilding.value = null
+	}
+
+	// 如果状态不再是selecting_floor_door，隐藏楼层门牌视图
+	if (newState.step !== 'selecting_floor_door') {
+		// 楼层门牌视图不需要本地状态，由computed控制显示
 	}
 }, { deep: true })
 

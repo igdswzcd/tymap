@@ -213,6 +213,19 @@ class DataManager {
 		)
 	}
 
+	// 获取指定楼栋单元的住户（用于FloorDoorView）
+	async getResidentsByBuildingUnit(building, unit) {
+		if (!this.isInitialized) {
+			await this.init()
+		}
+
+		if (!this.data) return []
+
+		return this.data.filter(resident =>
+			resident.building === building && resident.unit === unit
+		)
+	}
+
 	// 全局通过单元号查找住户（不指定楼栋）
 	async getResidentsByUnitGlobal(unit) {
 		if (!this.isInitialized) {
