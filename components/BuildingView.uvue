@@ -227,14 +227,42 @@ const switchUnder = () => {
 	console.log('nonono')
 }
 
+// 防止重复初始化的标志
+let isTestDataInitialized = false
+
 // 初始化测试数据
 const initializeTestData = async () => {
+	// 防止重复初始化
+	if (isTestDataInitialized) {
+		console.log('测试数据已经初始化过，跳过重复初始化')
+		return
+	}
+
 	try {
+		console.log('开始初始化测试数据...')
 		// 先尝试插入测试数据（insertMultipleTestResidents 函数内部已包含清空操作）
-		await insertMultipleTestResidents()
-		console.log('测试数据初始化成功')
+		const insertResult = await insertMultipleTestResidents()
+
+		// 检查是否跳过了数据生成
+		if (insertResult && insertResult.skipped) {
+			console.log('测试数据生成已跳过:', insertResult.reason)
+			// 即使跳过也要刷新缓存，确保显示最新数据
+			await dataManager.refreshData()
+			return
+		}
+
+		console.log('测试数据初始化成功，插入结果:', insertResult)
+
+		// 等待一下确保数据库操作完成
+		await new Promise(resolve => setTimeout(resolve, 500))
+
 		// 刷新dataManager缓存
+		console.log('开始刷新dataManager缓存...')
 		await dataManager.refreshData()
+		console.log('dataManager缓存刷新完成')
+
+		// 标记为已初始化
+		isTestDataInitialized = true
 	} catch (error) {
 		// 如果插入失败（可能数据已存在），继续执行
 		console.log('测试数据初始化跳过:', (error as any).message)

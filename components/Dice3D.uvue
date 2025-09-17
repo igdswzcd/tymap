@@ -87,7 +87,7 @@ const getGradientClass = (buildingNumber) => {
   const num = parseInt(buildingNumber)
 
   // class1,4,17: 80%透明度黄->黄
-  if ([1, 4, 17].includes(num)) {
+  if ([1, 4, 7].includes(num)) {
     return 'gradient-yellow-transparent'
   }
 

@@ -80,7 +80,7 @@ class DataManager {
 				throw new Error('无法创建数据库连接')
 			}
 
-			const result = await db.collection('residents').get()
+			const result = await db.collection('residents').limit(10000).get()
 
 			if (result.data && result.data.length > 0) {
 				this.data = result.data

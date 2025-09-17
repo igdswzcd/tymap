@@ -27,7 +27,7 @@
 
 				<!-- 入住按钮 - 非住户或超级管理员可见 -->
 				<view
-					v-if="!userRole.isResident || userRole.isSuperAdmin"
+					v-if="!userRole.isResident"
 					class="action-button checkin-button"
 					@tap="handleCheckin"
 				>
@@ -54,7 +54,7 @@ const buildingViewRef = ref()
 const userRole = reactive({
 	isResident: true,
 	isSuperAdmin: true,
-	openid: ''
+	openid: 'openid_2_36_1_1'
 })
 
 // 楼栋点击事件
