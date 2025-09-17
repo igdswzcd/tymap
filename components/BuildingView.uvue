@@ -91,8 +91,8 @@
 
 		<!-- 单元视图组件 -->
 		<BuildingUnitView
-			v-if="unitViewVisible"
-			:buildingNumber="selectedBuilding?.building"
+			v-if="shouldShowUnitView"
+			:buildingNumber="storeState.selectedBuilding"
 			@close="handleUnitViewClose"
 			@unitTap="onUnitTap"
 		/>
@@ -100,12 +100,13 @@
 </template>
 
 <script setup lang="uts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import buildingManager from '@/utils/buildingManager.js'
 import dataManager from '@/utils/dataManager.js'
 import Dice3D from '@/components/Dice3D.uvue'
 import BuildingUnitView from '@/components/BuildingUnitView.uvue'
 import { insertMultipleTestResidents } from '@/utils/mockData.uts'
+import checkinStore from '@/store/index.uts'
 
 // 定义事件
 const emit = defineEmits(['buildingTap'])
@@ -120,6 +121,30 @@ const selectedBuilding = ref<any>(null)
 const allBuildings = ref<any[]>([])
 const flatBuildings = ref<any[]>([])
 const villaBuildings = ref<any[]>([])
+
+// 监听store状态
+const storeState = checkinStore.getReactiveState()
+
+// 根据store状态计算是否应该显示单元视图
+const shouldShowUnitView = computed(() => {
+	return storeState.step === 'selecting_unit' && storeState.selectedBuilding !== null
+})
+
+// 根据store状态同步选中的楼栋
+const syncSelectedBuilding = () => {
+	if (storeState.selectedBuilding && !selectedBuilding.value) {
+		// 从楼栋列表中找到对应的楼栋
+		const building = allBuildings.value.find(b => b.building === storeState.selectedBuilding)
+		if (building) {
+			selectedBuilding.value = building
+			unitViewVisible.value = true
+		}
+	} else if (!storeState.selectedBuilding && selectedBuilding.value) {
+		// 如果store中没有选中的楼栋，清空本地选择
+		selectedBuilding.value = null
+		unitViewVisible.value = false
+	}
+}
 
 // 计算行数据
 const flatRows = computed(() => {
@@ -210,11 +235,10 @@ const onBuildingTap = (building: any) => {
 		return
 	}
 
-	// 显示单元视图
-	console.log('准备显示单元视图，楼栋数据:', building)
-	selectedBuilding.value = building
-	unitViewVisible.value = true
-	console.log('单元视图状态更新 - visible:', unitViewVisible.value, 'selectedBuilding:', selectedBuilding.value)
+	// 使用全局状态管理进入单元选择
+	checkinStore.enterUnitSelection(building.building)
+
+	console.log('已进入单元选择状态，楼栋:', building.building)
 }
 
 // 切换区域
@@ -277,13 +301,17 @@ const initializeTestData = async () => {
 
 // 单元视图关闭事件
 const handleUnitViewClose = () => {
-	unitViewVisible.value = false
-	selectedBuilding.value = null
+	// 使用全局状态管理返回上级
+	checkinStore.goBack()
 }
 
 // 单元点击事件
 const onUnitTap = (unit: any) => {
 	console.log('点击单元:', unit)
+
+	// 使用全局状态管理选择单元
+	checkinStore.selectUnit(unit.unit)
+
 	// TODO: 处理单元选择逻辑，可以进一步显示楼层和门
 }
 
@@ -292,6 +320,22 @@ defineExpose({
 	loadBuildingData,
 	initializeTestData
 })
+
+// 监听store状态变化
+watch(storeState, (newState, oldState) => {
+	console.log('Store状态变化:', newState)
+
+	// 同步选中的楼栋
+	if (newState.step === 'selecting_unit' && newState.selectedBuilding !== oldState.selectedBuilding) {
+		syncSelectedBuilding()
+	}
+
+	// 如果状态不再是selecting_unit，隐藏单元视图
+	if (newState.step !== 'selecting_unit') {
+		unitViewVisible.value = false
+		selectedBuilding.value = null
+	}
+}, { deep: true })
 
 // 生命周期
 onMounted(async () => {
@@ -302,6 +346,9 @@ onMounted(async () => {
 	await buildingManager.init()
 	// 加载楼栋数据
 	await loadBuildingData()
+
+	// 初始同步store状态
+	syncSelectedBuilding()
 })
 </script>
 

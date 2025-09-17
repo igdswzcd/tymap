@@ -25,7 +25,27 @@
 					</view>
 				</view>
 
-				<!-- 入住按钮 - 非住户可见 -->
+				<!-- 入住流程 breadcrumb 导航 -->
+				<view
+					v-if="!userRole.isResident && checkinBreadcrumb.length > 0"
+					class="breadcrumb-container"
+				>
+					<view
+						v-for="(breadcrumb, index) in checkinBreadcrumb"
+						:key="index"
+						class="breadcrumb-item"
+						:class="{ 'clickable': true }"
+						@tap="handleBreadcrumbTap(index)"
+					>
+						<text class="breadcrumb-text">{{ breadcrumb.name }}</text>
+						<text
+							v-if="index < checkinBreadcrumb.length - 1"
+							class="breadcrumb-separator"
+						>></text>
+					</view>
+				</view>
+
+				<!-- 入住按钮 - 只在idle状态下显示 -->
 				<view
 					v-if="!userRole.isResident"
 					class="action-button checkin-button"
@@ -83,11 +103,12 @@
 </template>
 
 <script setup lang="uts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import BuildingView from '@/components/BuildingView.uvue'
 import { getUserOpenid } from '@/utils/mockData.uts'
 import dataManager from '@/utils/dataManager.js'
 import buildingManager from '@/utils/buildingManager.js'
+import checkinStore, { type BreadcrumbItem } from '@/store/index.uts'
 
 const buildingViewRef = ref()
 
@@ -98,8 +119,11 @@ const userRole = reactive({
 	openid: 'openid_2_36_1_1'
 })
 
-// 入住按钮文本
-const checkinButtonText = ref('入住')
+// 入住按钮文本 - 使用全局状态管理
+const checkinButtonText = computed(() => checkinStore.getButtonText())
+
+// breadcrumb导航 - 使用全局状态管理
+const checkinBreadcrumb = computed(() => checkinStore.getBreadcrumb())
 
 // 用户信息显示
 const userInfo = reactive({
@@ -139,17 +163,10 @@ const handleRequestList = () => {
 const handleCheckin = async () => {
 	console.log('申请入住')
 	try {
-		// 将当前状态（入住中）同步写入缓存
-		await uni.setStorageSync('checkin_process_step', 'selecting_building')
-		await uni.setStorageSync('checkin_user_info', {
-			openid: userRole.openid,
-			startTime: Date.now()
-		})
+		// 使用全局状态管理启动入住流程
+		checkinStore.startCheckin(userRole.openid)
 
-		console.log('入住状态已写入缓存')
-
-		// 更新按钮文本为"选择楼栋"
-		checkinButtonText.value = '选择楼栋'
+		console.log('入住流程已启动')
 	} catch (error) {
 		console.error('设置入住状态失败:', error)
 		uni.showToast({
@@ -159,14 +176,13 @@ const handleCheckin = async () => {
 	}
 }
 
-// 用户信息按钮点击
-const handleUserInfo = () => {
-	console.log('查看用户信息')
-	// 显示用户信息弹窗或跳转到用户信息页面
-	uni.showToast({
-		title: '用户信息功能开发中',
-		icon: 'none'
-	})
+// breadcrumb点击事件
+const handleBreadcrumbTap = (index: number) => {
+	const breadcrumb = checkinBreadcrumb.value[index]
+	console.log('点击breadcrumb:', breadcrumb)
+
+	// 点击任意breadcrumb都回到上一级
+	checkinStore.goBack()
 }
 
 // 第二个audit按钮点击
@@ -333,6 +349,7 @@ onMounted(async () => {
 	width: 100%;
 	max-width: 750rpx;
 }
+
 
 .left-area {
 	flex: 1;
@@ -614,6 +631,60 @@ onMounted(async () => {
 	height: 40rpx;
 	filter: drop-shadow(2rpx 2rpx 20rpx yellow);
 }
+
+/* Breadcrumb导航样式 */
+.breadcrumb-container {
+	border-radius: 100rpx;
+	flex: 4;
+	background: linear-gradient(135deg, #667eea, #764ba2);
+	min-height: 140rpx;
+	box-shadow:
+		5rpx 8rpx 8rpx rgba(0, 0, 0, 0.16),
+		2rpx 3rpx 6rpx rgba(0, 0, 0, 0.1);
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	padding: 0 40rpx;
+	gap: 10rpx;
+}
+
+.breadcrumb-item {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	padding: 10rpx 20rpx;
+	border-radius: 20rpx;
+	transition: all 0.3s ease;
+	cursor: pointer;
+}
+
+.breadcrumb-item:active {
+	transform: scale(0.95);
+	background: rgba(255, 255, 255, 0.2);
+}
+
+.breadcrumb-text {
+	font-size: 36rpx;
+	font-weight: 600;
+	color: #ffffff;
+	transition: all 0.3s ease;
+	opacity: 0.9;
+}
+
+.breadcrumb-item:active .breadcrumb-text {
+	opacity: 1;
+}
+
+.breadcrumb-separator {
+	font-size: 28rpx;
+	font-weight: bold;
+	color: rgba(255, 255, 255, 0.7);
+	margin: 0 10rpx;
+	transition: all 0.3s ease;
+}
+
+
 
 
 </style>

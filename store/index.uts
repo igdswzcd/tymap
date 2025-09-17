@@ -1,0 +1,318 @@
+// 全局状态管理模块
+import { reactive } from 'vue'
+
+// 入住流程状态类型
+export type CheckinStep = 'idle' | 'selecting_building' | 'selecting_unit' | 'selecting_floor' | 'selecting_door' | 'confirming'
+
+// 入住流程 breadcrumb 类型
+export interface BreadcrumbItem {
+	type: 'building' | 'unit' | 'floor' | 'door'
+	name: string
+	data: any
+}
+
+// 入住流程状态
+interface CheckinState {
+	step: CheckinStep
+	selectedBuilding: string | null
+	selectedUnit: string | null
+	selectedFloor: string | null
+	selectedDoor: string | null
+	userInfo: {
+		openid: string
+		startTime: number
+	} | null
+}
+
+// 创建全局状态
+const checkinState = reactive<CheckinState>({
+	step: 'idle',
+	selectedBuilding: null,
+	selectedUnit: null,
+	selectedFloor: null,
+	selectedDoor: null,
+	userInfo: null
+})
+
+// 导出的状态管理方法
+export const checkinStore = {
+	// 获取当前状态
+	getState(): CheckinState {
+		return {
+			step: checkinState.step,
+			selectedBuilding: checkinState.selectedBuilding,
+			selectedUnit: checkinState.selectedUnit,
+			selectedFloor: checkinState.selectedFloor,
+			selectedDoor: checkinState.selectedDoor,
+			userInfo: checkinState.userInfo ? { ...checkinState.userInfo } : null
+		}
+	},
+
+	// 开始入住流程
+	startCheckin(openid: string) {
+		checkinState.step = 'selecting_building'
+		checkinState.selectedBuilding = null
+		checkinState.selectedUnit = null
+		checkinState.selectedFloor = null
+		checkinState.selectedDoor = null
+		checkinState.userInfo = {
+			openid,
+			startTime: Date.now()
+		}
+		console.log('入住流程已启动:', checkinState)
+	},
+
+	// 选择楼栋
+	selectBuilding(building: string) {
+		checkinState.selectedBuilding = building
+		checkinState.selectedUnit = null
+		checkinState.selectedFloor = null
+		checkinState.selectedDoor = null
+		console.log('已选择楼栋:', building)
+	},
+
+	// 进入单元选择
+	enterUnitSelection(building: string) {
+		checkinState.step = 'selecting_unit'
+		checkinState.selectedBuilding = building
+		checkinState.selectedUnit = null
+		checkinState.selectedFloor = null
+		checkinState.selectedDoor = null
+		console.log('进入单元选择，楼栋:', building)
+	},
+
+	// 选择单元
+	selectUnit(unit: string) {
+		checkinState.selectedUnit = unit
+		checkinState.selectedFloor = null
+		checkinState.selectedDoor = null
+		console.log('已选择单元:', unit)
+	},
+
+	// 进入楼层选择
+	enterFloorSelection(building: string, unit: string) {
+		checkinState.step = 'selecting_floor'
+		checkinState.selectedBuilding = building
+		checkinState.selectedUnit = unit
+		checkinState.selectedFloor = null
+		checkinState.selectedDoor = null
+		console.log('进入楼层选择，楼栋:', building, '单元:', unit)
+	},
+
+	// 选择楼层
+	selectFloor(floor: string) {
+		checkinState.selectedFloor = floor
+		checkinState.selectedDoor = null
+		console.log('已选择楼层:', floor)
+	},
+
+	// 进入门牌选择
+	enterDoorSelection(building: string, unit: string, floor: string) {
+		checkinState.step = 'selecting_door'
+		checkinState.selectedBuilding = building
+		checkinState.selectedUnit = unit
+		checkinState.selectedFloor = floor
+		checkinState.selectedDoor = null
+		console.log('进入门牌选择，楼栋:', building, '单元:', unit, '楼层:', floor)
+	},
+
+	// 选择门牌
+	selectDoor(door: string) {
+		checkinState.selectedDoor = door
+		console.log('已选择门牌:', door)
+	},
+
+	// 返回上级
+	goBack() {
+		switch (checkinState.step) {
+			case 'selecting_unit':
+				checkinState.step = 'selecting_building'
+				checkinState.selectedUnit = null
+				break
+			case 'selecting_floor':
+				checkinState.step = 'selecting_unit'
+				checkinState.selectedFloor = null
+				break
+			case 'selecting_door':
+				checkinState.step = 'selecting_floor'
+				checkinState.selectedDoor = null
+				break
+			case 'confirming':
+				checkinState.step = 'selecting_door'
+				break
+		}
+		console.log('返回上级，当前步骤:', checkinState.step)
+	},
+
+	// 回到指定层级
+	goToLevel(targetType: 'building' | 'unit' | 'floor' | 'door') {
+		switch (targetType) {
+			case 'building':
+				// 回到楼栋选择状态
+				checkinState.step = 'selecting_building'
+				checkinState.selectedUnit = null
+				checkinState.selectedFloor = null
+				checkinState.selectedDoor = null
+				break
+			case 'unit':
+				// 回到单元选择状态
+				if (checkinState.selectedBuilding) {
+					checkinState.step = 'selecting_unit'
+					checkinState.selectedFloor = null
+					checkinState.selectedDoor = null
+				}
+				break
+			case 'floor':
+				// 回到楼层选择状态
+				if (checkinState.selectedBuilding && checkinState.selectedUnit) {
+					checkinState.step = 'selecting_floor'
+					checkinState.selectedDoor = null
+				}
+				break
+			case 'door':
+				// 回到门牌选择状态
+				if (checkinState.selectedBuilding && checkinState.selectedUnit && checkinState.selectedFloor) {
+					checkinState.step = 'selecting_door'
+				}
+				break
+		}
+		console.log('回到层级:', targetType, '当前步骤:', checkinState.step)
+	},
+
+	// 重置状态
+	reset() {
+		checkinState.step = 'idle'
+		checkinState.selectedBuilding = null
+		checkinState.selectedUnit = null
+		checkinState.selectedFloor = null
+		checkinState.selectedDoor = null
+		checkinState.userInfo = null
+		console.log('入住流程已重置')
+	},
+
+	// 获取 breadcrumb 导航
+	getBreadcrumb(): BreadcrumbItem[] {
+		const breadcrumb: BreadcrumbItem[] = []
+
+		switch (checkinState.step) {
+			case 'selecting_building':
+				// 在building选择状态下，不显示任何breadcrumb
+				break
+			case 'selecting_unit':
+				// 在unit选择状态下，显示building breadcrumb
+				if (checkinState.selectedBuilding) {
+					breadcrumb.push({
+						type: 'building',
+						name: `${checkinState.selectedBuilding}#`,
+						data: checkinState.selectedBuilding
+					})
+				}
+				break
+			case 'selecting_floor':
+				// 在floor选择状态下，显示building和unit breadcrumb
+				if (checkinState.selectedBuilding) {
+					breadcrumb.push({
+						type: 'building',
+						name: `${checkinState.selectedBuilding}#`,
+						data: checkinState.selectedBuilding
+					})
+				}
+				if (checkinState.selectedUnit) {
+					breadcrumb.push({
+						type: 'unit',
+						name: checkinState.selectedUnit,
+						data: checkinState.selectedUnit
+					})
+				}
+				break
+			case 'selecting_door':
+				// 在door选择状态下，显示building、unit和floor breadcrumb
+				if (checkinState.selectedBuilding) {
+					breadcrumb.push({
+						type: 'building',
+						name: `${checkinState.selectedBuilding}#`,
+						data: checkinState.selectedBuilding
+					})
+				}
+				if (checkinState.selectedUnit) {
+					breadcrumb.push({
+						type: 'unit',
+						name: checkinState.selectedUnit,
+						data: checkinState.selectedUnit
+					})
+				}
+				if (checkinState.selectedFloor) {
+					breadcrumb.push({
+						type: 'floor',
+						name: `${checkinState.selectedFloor}层`,
+						data: checkinState.selectedFloor
+					})
+				}
+				break
+			case 'confirming':
+				// 在确认状态下，显示所有breadcrumb
+				if (checkinState.selectedBuilding) {
+					breadcrumb.push({
+						type: 'building',
+						name: `${checkinState.selectedBuilding}#`,
+						data: checkinState.selectedBuilding
+					})
+				}
+				if (checkinState.selectedUnit) {
+					breadcrumb.push({
+						type: 'unit',
+						name: checkinState.selectedUnit,
+						data: checkinState.selectedUnit
+					})
+				}
+				if (checkinState.selectedFloor) {
+					breadcrumb.push({
+						type: 'floor',
+						name: `${checkinState.selectedFloor}层`,
+						data: checkinState.selectedFloor
+					})
+				}
+				if (checkinState.selectedDoor) {
+					breadcrumb.push({
+						type: 'door',
+						name: `${checkinState.selectedDoor}号`,
+						data: checkinState.selectedDoor
+					})
+				}
+				break
+		}
+
+		return breadcrumb
+	},
+
+	// 获取按钮文本
+	getButtonText(): string {
+		switch (checkinState.step) {
+			case 'idle':
+				return '入住'
+			case 'selecting_building':
+				return '选择楼栋'
+			case 'selecting_unit':
+				return '选择单元'
+			case 'selecting_floor':
+				return '选择楼层'
+			case 'selecting_door':
+				return '选择门牌'
+			case 'confirming':
+				return '确认信息'
+			default:
+				return '入住'
+		}
+	},
+
+	// 获取响应式状态（用于Vue的watch）
+	getReactiveState() {
+		return checkinState
+	}
+}
+
+// 导出类型
+export type { CheckinState, BreadcrumbItem }
+
+// 默认导出
+export default checkinStore
