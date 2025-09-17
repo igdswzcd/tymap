@@ -227,7 +227,7 @@ export const checkinStore = {
 	getButtonText(): string {
 		switch (checkinState.step) {
 			case 'idle':
-				return '入住'
+				return '即刻入住'
 			case 'selecting_building':
 				return '选择楼栋'
 			case 'selecting_unit':
@@ -237,7 +237,7 @@ export const checkinStore = {
 			case 'confirming':
 				return '确认信息'
 			default:
-				return '入住'
+				return '即刻入住'
 		}
 	},
 

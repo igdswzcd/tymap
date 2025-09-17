@@ -59,7 +59,8 @@
 							class="button-content"
 						>
 							<text class="button-text">{{ checkinButtonText }}</text>
-							<text class="button-text button-exclamation">!!</text>
+							<text class="button-text button-exclamation">!</text>
+							<text class="button-text button-exclamation rotate-15">!</text>
 						</view>
 					</view>
 				</view>
@@ -470,7 +471,6 @@ onMounted(async () => {
 	justify-content: center;
 	border-radius: 40rpx;
 	transition: all 0.3s ease;
-	cursor: pointer;
 	box-sizing: border-box;
 	box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.12);
 }
@@ -531,8 +531,15 @@ onMounted(async () => {
 
 .button-exclamation {
 	font-weight: 900;
+	font-size: 44rpx;
 	font-style: italic;
-	margin-left: 8rpx;
+	padding-right: 8rpx;
+	margin-left: 4rpx;
+}
+.button-exclamation.rotate-15 {
+	padding-right: 8rpx;
+	margin-left: 0rpx;
+	transform: rotate(15deg);
 }
 
 .button-label {
@@ -751,7 +758,6 @@ onMounted(async () => {
 	justify-content: center;
 	border-radius: 140rpx;
 	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-	cursor: pointer;
 	box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
 	z-index: 5;
 }
@@ -797,30 +803,8 @@ onMounted(async () => {
 	text-align: center;
 }
 
-/* 第一个内部绶带 - 第一个面包屑 */
-.internal-ribbon-item.internal-ribbon-first {
-	background: linear-gradient(135deg, #ffffff, #f8f9fa) !important;
-	border: 2rpx solid rgba(255, 107, 107, 0.6);
-}
-
-/* 第二个内部绶带 - 第二个面包屑 */
-.internal-ribbon-item.internal-ribbon-last {
-	background: linear-gradient(135deg, #ffffff, #f8f9fa) !important;
-	border: 2rpx solid rgba(78, 205, 196, 0.6);
-}
-
 /* 内部绶带交互效果 */
 .internal-ribbon-item:active {
 	box-shadow: 0 1rpx 4rpx rgba(0, 0, 0, 0.2);
 }
-
-.internal-ribbon-item:hover {
-	transform: translateY(-1rpx);
-	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.15);
-}
-
-
-
-
-
 </style>
