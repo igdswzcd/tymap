@@ -170,8 +170,24 @@ export const checkinStore = {
 				}
 				break
 			case 'selecting_floor_door':
+				// 在楼层门牌选择状态下，显示building和unit breadcrumb
+				if (checkinState.selectedBuilding) {
+					breadcrumb.push({
+						type: 'building',
+						name: `${checkinState.selectedBuilding}#`,
+						data: checkinState.selectedBuilding
+					})
+				}
+				if (checkinState.selectedUnit) {
+					breadcrumb.push({
+						type: 'unit',
+						name: checkinState.selectedUnit,
+						data: checkinState.selectedUnit
+					})
+				}
+				break
 			case 'confirming':
-				// 在楼层门牌选择和确认状态下，只显示building和unit breadcrumb
+				// 在确认状态下，显示building和unit breadcrumb
 				if (checkinState.selectedBuilding) {
 					breadcrumb.push({
 						type: 'building',
@@ -191,6 +207,21 @@ export const checkinStore = {
 
 		return breadcrumb
 	},
+
+	// 获取当前步骤的显示按钮数量（包括圆形返回按钮）
+	getDisplayButtonCount(): number {
+		switch (checkinState.step) {
+			case 'selecting_building':
+				return 0
+			case 'selecting_unit':
+				return 2 // 圆形返回按钮 + building按钮
+			case 'selecting_floor_door':
+			case 'confirming':
+				return 3 // 圆形返回按钮 + building按钮 + unit按钮
+			default:
+				return 0
+		}
+	}
 
 	// 获取按钮文本
 	getButtonText(): string {

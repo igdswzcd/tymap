@@ -37,18 +37,19 @@
 					>
 						<!-- 按钮左侧的绶带面包屑 -->
 						<view
-							v-if="checkinBreadcrumb.length > 0"
+							v-if="displayButtonCount > 0"
 							class="internal-ribbon-breadcrumbs"
 						>
 							<view
-								v-for="(breadcrumb, index) in checkinBreadcrumb"
+								v-for="index in displayButtonCount"
 								:key="index"
 								class="internal-ribbon-item"
-								:class="getRibbonItemClass(index, checkinBreadcrumb.length)"
 								@tap.stop="handleBreadcrumbTap(index)"
 							>
 								<view class="internal-ribbon-content">
-									<text class="internal-ribbon-text">{{ breadcrumb.name }}</text>
+									<text class="internal-ribbon-text">
+										{{ getRibbonItemText(index, displayButtonCount) }}
+									</text>
 								</view>
 							</view>
 						</view>
@@ -56,7 +57,6 @@
 						<!-- 按钮内容区域 -->
 						<view
 							class="button-content"
-							:class="{ 'with-internal-ribbon': checkinBreadcrumb.length > 0 }"
 						>
 							<text class="button-text">{{ checkinButtonText }}</text>
 							<text class="button-text button-exclamation">!!</text>
@@ -132,6 +132,9 @@ const checkinButtonText = computed(() => checkinStore.getButtonText())
 // breadcrumb导航 - 使用全局状态管理
 const checkinBreadcrumb = computed(() => checkinStore.getBreadcrumb())
 
+// 显示按钮数量 - 使用全局状态管理
+const displayButtonCount = computed(() => checkinStore.getDisplayButtonCount())
+
 // 用户信息显示
 const userInfo = reactive({
 	location: '2-36-1-1',
@@ -153,23 +156,20 @@ const getAvatarText = (resident: any) => {
 	return resident.nickname.charAt(0)
 }
 
-// 获取绶带项的class
-const getRibbonItemClass = (index: number, totalCount: number) => {
-	const classes = []
-
-	if (totalCount === 1) {
-		// 只有一个面包屑时，使用单独的样式
-		classes.push('internal-ribbon-first')
+// 获取面包屑项显示文字
+const getRibbonItemText = (index: number, totalCount: number) => {
+	console.log(index, totalCount)
+	if (index === 1) {
+		// 第一个总是返回按钮
+		return '⟲'
 	} else {
-		// 多个面包屑时，正常分配first和last
-		if (index === 0) {
-			classes.push('internal-ribbon-first')
-		} else if (index === totalCount - 1) {
-			classes.push('internal-ribbon-last')
+		// 其他显示正常的面包屑名称
+		const breadcrumbIndex = index - 2 // 减去返回按钮
+		if (checkinBreadcrumb.value[breadcrumbIndex]) {
+			return checkinBreadcrumb.value[breadcrumbIndex].name
 		}
+		return ''
 	}
-
-	return classes
 }
 
 // 楼栋点击事件
@@ -277,11 +277,17 @@ const handleCheckin = async () => {
 
 // breadcrumb点击事件
 const handleBreadcrumbTap = (index: number) => {
-	const breadcrumb = checkinBreadcrumb.value[index]
-	console.log('点击breadcrumb:', breadcrumb)
 
-	// 根据点击的breadcrumb类型直接跳转到对应层级
-	checkinStore.goToLevel(breadcrumb.type)
+	if (index === 1) {
+		// 点击圆形返回按钮，总是回到building选择
+		checkinStore.goToLevel('building')
+	} else {
+		// 点击其他按钮，跳转到对应层级
+		const breadcrumbIndex = index - 1 // 减去返回按钮
+		if (checkinBreadcrumb.value[breadcrumbIndex]) {
+			checkinStore.goToLevel(checkinBreadcrumb.value[breadcrumbIndex].type)
+		}
+	}
 }
 
 // 第二个audit按钮点击
@@ -465,13 +471,12 @@ onMounted(async () => {
 	border-radius: 40rpx;
 	transition: all 0.3s ease;
 	cursor: pointer;
-	padding: 15rpx 15rpx;
 	box-sizing: border-box;
 	box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.12);
 }
 
 .action-button:active {
-	transform: scale(0.98);
+	transform: scale(1.02);
 	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.15);
 }
 
@@ -495,6 +500,8 @@ onMounted(async () => {
 	height: 100%;
 	border-radius: 100rpx;
 	flex: 4;
+	display: flex;
+	flex-direction: row;
 	background: linear-gradient(135deg, #00F260, #0575E6);
 	min-height: 140rpx;
 	box-shadow:
@@ -509,8 +516,10 @@ onMounted(async () => {
 }
 
 .button-content {
-	display: inline;
-	width: 100%;
+	flex: 1;
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
 	text-align: center;
 }
 
@@ -659,26 +668,6 @@ onMounted(async () => {
 	color: #5a6c7d;
 }
 
-/* 中心头像 - 放大和不透明 */
-.avatar-placeholder.avatar-center {
-	transform: scale(1.2);
-	z-index: 2;
-	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.2);
-	border-color: rgba(255, 255, 255, 1);
-	opacity: 1;
-}
-
-/* 接近中心的头像 - 轻微放大 */
-.avatar-placeholder.avatar-near {
-	transform: scale(1.1);
-	opacity: 0.8;
-}
-
-/* 远离中心的头像 - 正常大小和透明 */
-.avatar-placeholder.avatar-far {
-	opacity: 0.5;
-}
-
 /* 右侧信息区 (3/5) */
 .info-area {
 	flex: 2;
@@ -737,36 +726,50 @@ onMounted(async () => {
 .ribbon-breadcrumb-container {
 	border-radius: 100rpx;
 	flex: 4;
-	min-height: 140rpx;
+	height: 140rpx;
 	width: 100%;
 }
 
 /* 按钮内部绶带面包屑组 */
 .internal-ribbon-breadcrumbs {
 	height: 100%;
-	position: absolute;
-	left: 60rpx;
-	top: 50%;
-	transform: translateY(-50%);
 	display: flex;
 	flex-direction: row;
 	align-items: center;
 	z-index: 5;
 }
 
-/* 内部绶带项 - 平行四边形效果 */
+/* 内部绶带项 - 圆角按钮效果 */
 .internal-ribbon-item {
 	position: relative;
 	height: 100%;
 	min-width: 140rpx;
-	max-width: 160rpx;
+	background: #fff;
+	max-width: 200rpx;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	margin-right: -45rpx; /* 重叠效果 */
-	clip-path: polygon(45rpx 0, 100% 0, calc(100% - 45rpx) 100%, 0 100%);
+	border-radius: 140rpx;
 	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 	cursor: pointer;
+	box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+	z-index: 5;
+}
+.internal-ribbon-item:nth-child(2) {
+	margin-left: -70rpx;
+	width: 160rpx;
+	padding-left: 60rpx;
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
+	z-index: 4;
+}
+.internal-ribbon-item:nth-child(3) {
+	margin-left: -70rpx;
+	width: 160rpx;
+	padding-left: 60rpx;
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
+	z-index: 3;
 }
 
 /* 内部绶带内容 */
@@ -774,137 +777,48 @@ onMounted(async () => {
 	width: 100%;
 	height: 100%;
 	display: flex;
+	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	padding: 0 20rpx;
+	padding: 4rpx 8rpx;
 	position: relative;
 	z-index: 2;
+	box-sizing: border-box;
 }
 
 /* 内部绶带文字 */
 .internal-ribbon-text {
-	font-size: 24rpx;
-	font-weight: 700;
-	color: #ffffff;
-	text-shadow: 0 1rpx 2rpx rgba(0, 0, 0, 0.4);
+	font-size: 32rpx;
+	font-weight: 600;
+	color: #2c3e50;
 	white-space: nowrap;
 	position: relative;
 	z-index: 3;
+	text-align: center;
 }
 
 /* 第一个内部绶带 - 第一个面包屑 */
 .internal-ribbon-item.internal-ribbon-first {
-	background: #ddd !important;
-	border-left: none;
-	margin-left: 0;
-}
-
-.internal-ribbon-item.internal-ribbon-first::before {
-	content: '';
-	position: absolute;
-	left: -15rpx;
-	top: 0;
-	width: 15rpx;
-	height: 100%;
-	background: linear-gradient(135deg, #FF6B6B, #C44569) !important;
-	clip-path: polygon(0 0, 0 100%, 100% 50%);
-	z-index: 1;
-}
-
-/* 当只有一个面包屑时（只有first），添加右侧斜边 */
-.internal-ribbon-item.internal-ribbon-first:last-child {
-	margin-right: 20rpx;
-}
-
-.internal-ribbon-item.internal-ribbon-first:last-child::after {
-	content: '';
-	position: absolute;
-	right: -15rpx;
-	top: 0;
-	width: 15rpx;
-	height: 100%;
-	background: linear-gradient(135deg, #FF6B6B, #C44569) !important;
-	clip-path: polygon(100% 0, 0 50%, 100% 100%);
-	z-index: 1;
+	background: linear-gradient(135deg, #ffffff, #f8f9fa) !important;
+	border: 2rpx solid rgba(255, 107, 107, 0.6);
 }
 
 /* 第二个内部绶带 - 第二个面包屑 */
 .internal-ribbon-item.internal-ribbon-last {
-	background: linear-gradient(135deg, #4ECDC4, #44A08D) !important;
-	border-right: none;
-	margin-right: 20rpx;
-}
-
-.internal-ribbon-item.internal-ribbon-last::after {
-	content: '';
-	position: absolute;
-	right: -15rpx;
-	top: 0;
-	width: 15rpx;
-	height: 100%;
-	background: linear-gradient(135deg, #4ECDC4, #44A08D) !important;
-	clip-path: polygon(100% 0, 0 50%, 100% 100%);
-	z-index: 1;
-}
-
-/* 按钮内容适配内部绶带 */
-.button-content.with-internal-ribbon {
-	margin-left: 160rpx; /* 为内部绶带留出空间 */
-	transition: margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+	background: linear-gradient(135deg, #ffffff, #f8f9fa) !important;
+	border: 2rpx solid rgba(78, 205, 196, 0.6);
 }
 
 /* 内部绶带交互效果 */
 .internal-ribbon-item:active {
-	transform: translateY(1rpx) scale(0.98);
+	box-shadow: 0 1rpx 4rpx rgba(0, 0, 0, 0.2);
 }
 
 .internal-ribbon-item:hover {
 	transform: translateY(-1rpx);
-	filter: brightness(1.1);
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.15);
 }
 
-/* 内部绶带层次阴影 */
-.internal-ribbon-item {
-	box-shadow:
-		1rpx 2rpx 4rpx rgba(0, 0, 0, 0.3),
-		inset 0 1rpx 0 rgba(255, 255, 255, 0.2);
-}
-
-/* 内部绶带动画效果 */
-@keyframes internalRibbonSlideIn {
-	0% {
-		opacity: 0;
-		transform: translateX(-20rpx) translateY(-50%);
-	}
-	100% {
-		opacity: 1;
-		transform: translateX(0) translateY(-50%);
-	}
-}
-
-.internal-ribbon-breadcrumbs {
-	animation: internalRibbonSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* 移除nth-child选择器，避免样式冲突 */
-
-/* 内部绶带光泽效果 */
-.internal-ribbon-item::before {
-	content: '';
-	position: absolute;
-	top: 0;
-	left: 0;
-	right: 0;
-	height: 30%;
-	background: linear-gradient(
-		to bottom,
-		rgba(255, 255, 255, 0.4) 0%,
-		rgba(255, 255, 255, 0.1) 50%,
-		rgba(255, 255, 255, 0) 100%
-	);
-	pointer-events: none;
-	z-index: 4;
-}
 
 
 
