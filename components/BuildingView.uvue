@@ -28,6 +28,7 @@
 							<Dice3D
 								:disabled="!building.isOpen"
 								:buildingNumber="building.building"
+								:unitNumbers="buildingUnitData[building.building] || []"
 								:residentCount="buildingResidentCounts[building.building] || 0"
 								:doorCount="buildingDoorCounts[building.building] || 0"
 								:totalCapacity="buildingCapacities[building.building] || 1"
@@ -85,6 +86,7 @@
 							<Dice3D
 								:disabled="!building.isOpen"
 								:buildingNumber="building.building"
+								:unitNumbers="buildingUnitData[building.building] || []"
 								:residentCount="buildingResidentCounts[building.building] || 0"
 								:doorCount="buildingDoorCounts[building.building] || 0"
 								:totalCapacity="buildingCapacities[building.building] || 1"
@@ -115,6 +117,7 @@ const isAnimating = ref(false)
 const buildingResidentCounts = ref<Record<string, number>>({})
 const buildingDoorCounts = ref<Record<string, number>>({})
 const buildingCapacities = ref<Record<string, number>>({})
+const buildingUnitData = ref<Record<string, number[]>>({})
 const allBuildings = ref<any[]>([])
 const flatBuildings = ref<any[]>([])
 const villaBuildings = ref<any[]>([])
@@ -201,12 +204,12 @@ const onBuildingTap = (building: any) => {
 	emit('buildingTap', building)
 	if (!building.isOpen) {
 		uni.showToast({
-			title: `${building.building}栋 (未开放)`,
+			title: `${building.building}# (未开放)`,
 			icon: 'none'
 		})
 	} else {
 		uni.showToast({
-			title: `${building.building}栋`,
+			title: `${building.building}#`,
 			icon: 'none'
 		})
 	}
@@ -305,11 +308,28 @@ const loadBuildingCapacities = async () => {
 	}
 }
 
+// 获取建筑单元数据
+const loadBuildingUnitData = async () => {
+	try {
+		const unitData: Record<string, number[]> = {}
+		for (const building of allBuildings.value) {
+			const buildingInfo = await buildingManager.getBuilding(building.building)
+			if (buildingInfo && buildingInfo.units) {
+				unitData[building.building] = buildingInfo.units
+			}
+		}
+		buildingUnitData.value = unitData
+	} catch (error) {
+		console.error('获取建筑单元数据失败:', error)
+	}
+}
+
 // 对外暴露的方法
 defineExpose({
 	loadBuildingResidentCounts,
 	loadBuildingDoorCounts,
 	loadBuildingCapacities,
+	loadBuildingUnitData,
 	loadBuildingData,
 	initializeTestData
 })
@@ -329,6 +349,7 @@ onMounted(async () => {
 	loadBuildingResidentCounts()
 	loadBuildingDoorCounts()
 	await loadBuildingCapacities()
+	loadBuildingUnitData()
 })
 </script>
 

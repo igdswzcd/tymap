@@ -9,10 +9,33 @@
       <view v-if="disabled" class="lock-icon">
         <text>🔒</text>
       </view>
-      <view v-else class="building-number">
-        <text class="building-name">{{ buildingNumber }}栋</text>
-        <text v-if="doorCount && totalCapacity" class="household-count">{{ doorCount }}/{{ totalCapacity }}户</text>
-        <text v-if="residentCount" class="resident-count">{{ residentCount }}人</text>
+      <view v-else class="dice-content">
+        <!-- 顶部单元号 -->
+        <view class="units-row">
+          <view
+            v-for="(unit, index) in unitNumbers"
+            :key="index"
+            class="unit-item"
+          >
+            <text class="unit-text">{{ unit }}</text>
+          </view>
+        </view>
+
+        <!-- 左下角数据区域 -->
+        <view class="bottom-left-data">
+          <view v-if="residentCount" class="resident-count-container">
+            <text class="resident-count">{{ residentCount }}人</text>
+          </view>
+          <view class="occupancy-rate-container">
+            <text class="occupancy-rate">{{ occupancyRate }}%</text>
+          </view>
+        </view>
+
+        <!-- 右下角栋号 -->
+        <view class="building-number-corner">
+          <text class="building-number-text">{{ buildingNumber }}</text>
+          <text class="superscript">#</text>
+        </view>
       </view>
     </view>
     <view class="back face"></view>
@@ -49,6 +72,10 @@ const props = defineProps({
     type: Number,
     default: ''
   },
+  unitNumbers: {
+    type: Array,
+    default: () => []
+  },
   residentCount: {
     type: Number,
     default: 0
@@ -66,11 +93,17 @@ const props = defineProps({
 // 随机初始角度（用于波浪动画）
 const randomWaveRotation = ref(Math.random() * 360) // 0-360度
 
+// 计算入住率
+const occupancyRate = computed(() => {
+  const rate = props.totalCapacity > 0 ? props.doorCount / props.totalCapacity : 0
+  return Math.round(rate * 100)
+})
+
 // 计算波浪高度（基于入住率）
 const waveHeight = computed(() => {
-  const occupancyRate = props.totalCapacity > 0 ? props.doorCount / props.totalCapacity : 0
+  const rate = props.totalCapacity > 0 ? props.doorCount / props.totalCapacity : 0
   // -75% 接近空，-100% 接近满
-  return -75 - (occupancyRate * 25)
+  return -75 - (rate * 25)
 })
 
 
@@ -198,57 +231,57 @@ onMounted(() => {
 /* class1,4,17: 80%透明度黄->黄 */
 .gradient-yellow-transparent {
   background: linear-gradient(90deg,
-    rgba(243, 249, 167, 0.8) 0%,
-    rgba(243, 249, 167, 1.0) 100%
+    rgba(243, 249, 167, 0.6) 0%,
+    rgba(243, 249, 167, 0.8) 100%
   ) !important;
 }
 
 /* class2,3：黄->蓝->淡红 */
 .gradient-yellow-blue-red {
   background: linear-gradient(90deg,
-    #F3F9A7 0%,
-    #6dd5ed 35%,
-    #6dd5ed 65%,
-    #FBD786 100%
+    #F3F9A780 0%,
+    #6dd5ed80 35%,
+    #6dd5ed80 65%,
+    #FBD78680 100%
   ) !important;
 }
 
 /* class8,9：淡红->蓝 */
 .gradient-red-blue {
   background: linear-gradient(90deg,
-    #FBD786 0%,
-    #6dd5edb0 35%,
-    #6dd5ed 100%
+    #FBD78680 0%,
+    #6dd5ed80 35%,
+    #6dd5edA0 100%
   ) !important;
 }
 
 /* class villa：80%淡绿->淡绿 */
 .gradient-green-transparent {
   background: linear-gradient(90deg,
-    rgba(103, 178, 111, 0.8) 0%,
-    rgba(103, 178, 111, 1.0) 100%
+    rgba(103, 178, 111, 0.6) 0%,
+    rgba(103, 178, 111, 0.8) 100%
   ) !important;
 }
 
 /* Right面基于终止色的纯色背景 */
 /* 基于黄色终止色 */
 .right-gradient-yellow {
-  background: rgba(243, 249, 167, 0.8) !important;
+  background: rgba(243, 249, 167, 0.5) !important;
 }
 
 /* 基于淡红色终止色 */
 .right-gradient-red {
-  background: #FBD786 !important;
+  background: #FBD78680 !important;
 }
 
 /* 基于蓝色终止色 */
 .right-gradient-blue {
-  background: #6dd5ed !important;
+  background: #6dd5ed80 !important;
 }
 
 /* 基于绿色终止色 */
 .right-gradient-green {
-  background: rgba(103, 178, 111, 0.8) !important;
+  background: rgba(103, 178, 111, 0.5) !important;
 }
 
 .wavy {
@@ -362,23 +395,122 @@ onMounted(() => {
   text-align: center;
 }
 
-.building-name {
-  color: #495057;
-  font-size: 16px;
-  font-weight: bold;
+.dice-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 8px;
+  box-sizing: border-box;
 }
 
-.household-count {
-  color: #6c757d;
+/* 顶部单元号行 */
+.units-row {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  right: 0;
+  height: 20px;
+  display: flex;
+  width: 100%;
+  flex-direction: row;
+  align-items: center;
+}
+
+.unit-item {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid transparent;
+}
+.unit-item:not(:last-child) {
+  border-right-color: rgba(0, 0, 0, 0.2);
+}
+
+.unit-text {
   font-size: 11px;
-  margin-top: 2px;
+  text-align: center;
+  font-weight: 600;
+  color: #495057;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 2px 6px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
+}
+
+/* 左下角数据区域 */
+.bottom-left-data {
+  position: absolute;
+  bottom: 6rpx;
+  left: 6rpx;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 2px;
+  z-index: 3;
+}
+
+.resident-count-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 .resident-count {
-  color: #28a745;
-  font-size: 11px;
-  margin-top: 1px;
-  font-weight: 500;
+  font-size: 12px;
+  color: #18652ca0;
+  font-weight: 600;
+  background: rgba(40, 167, 69, 0.1);
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
+.occupancy-rate-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.occupancy-rate {
+  font-size: 12px;
+  color: #0d542d80;
+  font-weight: 700;
+  background: rgba(0, 123, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
+/* 右下角栋号 */
+.building-number-corner {
+  position: absolute;
+  bottom: 2rpx;
+  right: 2rpx;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: flex-end;
+  z-index: 3;
+}
+
+.building-number-corner .building-number-text {
+  color: #495057;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.building-number-corner .superscript {
+  color: #495057;
+  font-size: 13px;
+  font-weight: normal;
+  line-height: 1;
+  margin-left: 1px;
+  margin-top: 2px;
 }
 
 @keyframes lockPulse {

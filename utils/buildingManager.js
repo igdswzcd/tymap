@@ -61,7 +61,6 @@ class BuildingManager {
 			...FLAT_BUILDINGS.map(([building, units, maxFloor, row]) => ({
 				building,
 				type: 'flat',
-				name: `${building}栋`,
 				floors: Array.from({ length: maxFloor }, (_, i) => i + 1),
 				units,
 				row,
@@ -70,7 +69,6 @@ class BuildingManager {
 			...VILLA_BUILDINGS.map(([building, units, row]) => ({
 				building,
 				type: 'villa',
-				name: `${building}栋别墅区`,
 				floors: [1, 3, 5], // 别墅固定3层
 				units,
 				row,
@@ -134,7 +132,7 @@ class BuildingManager {
 	// 获取楼栋显示名称
 	async getBuildingName(buildingNumber) {
 		const building = await this.getBuilding(buildingNumber)
-		return building ? building.name : `${buildingNumber}栋`
+		return buildingNumber
 	}
 
 	// 获取所有单元数量（根据buildingData中的units数组长度）

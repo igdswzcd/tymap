@@ -25,7 +25,7 @@
 					</view>
 				</view>
 
-				<!-- 入住按钮 - 非住户或超级管理员可见 -->
+				<!-- 入住按钮 - 非住户可见 -->
 				<view
 					v-if="!userRole.isResident"
 					class="action-button checkin-button"
@@ -36,13 +36,54 @@
 						<text class="button-text button-exclamation">!!</text>
 					</view>
 				</view>
+
+				<!-- 用户信息面板 - 住户可见 -->
+				<view
+					v-else
+					class="user-info-panel"
+				>
+					<!-- 左侧头像滚动区 (2/5) -->
+					<view class="avatar-scroll-area">
+						<view class="avatar-container">
+
+							<view class="avatar-marquee">
+								<view
+									v-for="(resident, index) in userInfo.doorResidents"
+									:key="'first-'+index"
+									class="avatar-placeholder"
+								>
+									<text class="avatar-text">{{ getAvatarText(resident) }}</text>
+								</view>
+							</view>
+							<view class="avatar-marquee">
+								<view
+									v-for="(resident, index) in userInfo.doorResidents"
+									:key="'second-'+index"
+									class="avatar-placeholder"
+								>
+									<text class="avatar-text">{{ getAvatarText(resident) }}</text>
+								</view>
+							</view>
+						</view>
+					</view>
+
+					<!-- 右侧信息区 (3/5) -->
+					<view class="info-area">
+						<view class="location-info-container">
+  <text class="location-text">{{ locationText }}</text>
+  <text class="location-superscript">#</text>
+  <text class="location-rest">{{ locationRest }}</text>
+</view>
+						<text class="neighbor-info">认识一下单元内{{ userInfo.neighborCount }}个邻居~</text>
+					</view>
+				</view>
 			</view>
 		</view>
 	</view>
 </template>
 
 <script setup lang="uts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import BuildingView from '@/components/BuildingView.uvue'
 import { getUserOpenid } from '@/utils/mockData.uts'
 import dataManager from '@/utils/dataManager.js'
@@ -56,6 +97,27 @@ const userRole = reactive({
 	isSuperAdmin: true,
 	openid: 'openid_2_36_1_1'
 })
+
+// 用户信息显示
+const userInfo = reactive({
+	location: '2-36-1-1',
+	neighborCount: 8,
+	unitNeighbors: [],
+	doorResidents: []
+})
+
+// 计算头像容器宽度
+const avatarContainerWidth = computed(() => {
+	const residentCount = userInfo.doorResidents.length
+	if (residentCount === 0) return '0rpx'
+	return `${residentCount * 2 * 80}rpx` // 双倍数量 * 每个头像占80rpx
+})
+
+// 获取头像显示文字
+const getAvatarText = (resident: any) => {
+	if (!resident || !resident.nickname) return '户'
+	return resident.nickname.charAt(0)
+}
 
 // 楼栋点击事件
 const onBuildingTap = (building: any) => {
@@ -75,6 +137,16 @@ const handleCheckin = () => {
 	// 跳转到入住申请页面
 }
 
+// 用户信息按钮点击
+const handleUserInfo = () => {
+	console.log('查看用户信息')
+	// 显示用户信息弹窗或跳转到用户信息页面
+	uni.showToast({
+		title: '用户信息功能开发中',
+		icon: 'none'
+	})
+}
+
 // 第二个audit按钮点击
 const handleSecondAction = () => {
 	console.log('第二个audit按钮')
@@ -84,6 +156,68 @@ const handleSecondAction = () => {
 	})
 }
 
+
+// 格式化用户位置信息
+const formatUserLocation = (userData: any) => {
+	if (!userData) return ''
+	return `${userData.building}#${userData.unit}-${userData.floor}0${userData.door}`
+}
+
+// 分解位置信息用于显示
+const locationText = ref('')
+const locationRest = ref('')
+
+const updateLocationDisplay = (location: string) => {
+	if (!location) {
+		locationText.value = ''
+		locationRest.value = ''
+		return
+	}
+
+	const hashIndex = location.indexOf('#')
+	if (hashIndex !== -1) {
+		locationText.value = location.substring(0, hashIndex)
+		locationRest.value = location.substring(hashIndex + 1)
+	} else {
+		locationText.value = location
+		locationRest.value = ''
+	}
+}
+
+// 获取单元内邻居数量
+const getUnitNeighborCount = async (userData: any) => {
+	if (!userData) return 0
+
+	try {
+		// 获取同楼栋同单元的所有住户
+		const unitResidents = await dataManager.getResidentsByUnit(userData.building, userData.unit)
+		// 排除自己
+		return unitResidents.filter(r => r.openid !== userData.openid).length
+	} catch (error) {
+		console.error('获取邻居数量失败:', error)
+		return 0
+	}
+}
+
+// 获取同门住户信息
+const getDoorResidents = async (userData: any) => {
+	if (!userData) return []
+
+	try {
+		// 获取同楼栋同单元同楼层的所有住户
+		const allResidents = await dataManager.getAllResidents()
+		const doorResidents = allResidents.filter(r =>
+			r.building === userData.building &&
+			r.unit === userData.unit &&
+			r.floor === userData.floor &&
+			r.door === userData.door
+		)
+		return doorResidents
+	} catch (error) {
+		console.error('获取同门住户失败:', error)
+		return []
+	}
+}
 
 // 检查用户身份
 const checkUserRole = async () => {
@@ -96,8 +230,16 @@ const checkUserRole = async () => {
 
 		if (userData) {
 			userRole.isResident = userData.apply_status === 'trusted'
-			userRole.isSuperAdmin = userData.is_super_admin || false
+			userRole.isSuperAdmin = userData.is_super_admin || userData.is_unit_admin || false
+
+			// 更新用户信息显示
+			userInfo.location = formatUserLocation(userData)
+			updateLocationDisplay(userInfo.location)
+			userInfo.neighborCount = await getUnitNeighborCount(userData)
+			userInfo.doorResidents = await getDoorResidents(userData)
+
 			console.log('用户身份:', userRole)
+			console.log('用户信息:', userInfo)
 		} else {
 			userRole.isResident = false
 			userRole.isSuperAdmin = false
@@ -248,6 +390,201 @@ onMounted(async () => {
 	font-size: 24rpx;
 	color: rgba(255, 255, 255, 0.9);
 	margin-top: 4rpx;
+}
+
+/* 用户信息面板样式 */
+.user-info-panel {
+	border-radius: 100rpx;
+	flex: 4;
+	background: linear-gradient(135deg, #C9D6FF, #E2E2E2);
+	min-height: 140rpx;
+	box-shadow:
+		5rpx 8rpx 8rpx rgba(0, 0, 0, 0.16),
+		2rpx 3rpx 6rpx rgba(0, 0, 0, 0.1);
+	display: flex;
+	flex-direction: row;
+	overflow: hidden;
+}
+
+/* 左侧头像滚动区 (2/5) */
+.avatar-scroll-area {
+	flex: 1;
+	background: rgba(255, 255, 255, 0.3);
+	border-right: 1rpx solid rgba(255, 255, 255, 0.5);
+	overflow: hidden;
+	position: relative;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	mask: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8) 10% 90%, transparent);
+}
+
+.avatar-container {
+	height: 80rpx;
+	width: 100%;
+	flex: 1;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+
+.avatar-marquee {
+	height: 80rpx;
+	width: 100%;
+	flex-shrink: 0;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 20rpx;
+	min-width: 100%;
+	animation: marquee 8s linear infinite;
+}
+
+.avatar-marquee:last-child {
+	position: absolute;
+	top: 0;
+	left: 0;
+	animation-name: marquee2;
+}
+
+/* 头像滚动动画 */
+@keyframes marquee {
+	0% {
+		transform: translateX(0);
+	}
+	100% {
+		transform: translateX(-100%);
+	}
+}
+
+@keyframes marquee2 {
+	0% {
+		transform: translateX(100%);
+	}
+	100% {
+		transform: translateX(0);
+	}
+}
+
+.avatar-placeholder {
+	width: 80rpx;
+	height: 80rpx;
+	border-radius: 50%;
+	background: linear-gradient(135deg, #ffffff, #f0f0f0);
+	box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+	border: 2rpx solid rgba(255, 255, 255, 0.8);
+	flex-shrink: 0;
+	transition: all 0.6s ease;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+
+	/* 使用CSS动画为滚动过程中的头像添加缩放效果 */
+	animation: avatarScale 8s linear infinite;
+}
+
+/* 为第二个marquee中的头像设置相同的缩放动画 */
+.avatar-marquee:last-child .avatar-placeholder {
+	animation: avatarScale 8s linear infinite;
+}
+
+/* 头像缩放动画 - 在滚动到中心时放大 */
+@keyframes avatarScale {
+	0% {
+		transform: scale(0.8);
+		opacity: 0.5;
+	}
+	25% {
+		transform: scale(1);
+		opacity: 1;
+	}
+	50% {
+		transform: scale(0.8);
+		opacity: 0.5;
+	}
+	75% {
+		transform: scale(1);
+		opacity: 1;
+	}
+	100% {
+		transform: scale(0.8);
+		opacity: 0.5;
+	}
+}
+
+/* 头像文字样式 */
+.avatar-text {
+	font-size: 24rpx;
+	font-weight: 600;
+	color: #5a6c7d;
+}
+
+/* 中心头像 - 放大和不透明 */
+.avatar-placeholder.avatar-center {
+	transform: scale(1.2);
+	z-index: 2;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.2);
+	border-color: rgba(255, 255, 255, 1);
+	opacity: 1;
+}
+
+/* 接近中心的头像 - 轻微放大 */
+.avatar-placeholder.avatar-near {
+	transform: scale(1.1);
+	opacity: 0.8;
+}
+
+/* 远离中心的头像 - 正常大小和透明 */
+.avatar-placeholder.avatar-far {
+	opacity: 0.5;
+}
+
+/* 右侧信息区 (3/5) */
+.info-area {
+	flex: 2;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: flex-start;
+	padding: 20rpx 30rpx;
+}
+
+.location-info-container {
+	display: flex;
+	align-items: flex-start;
+	justify-content: flex-start;
+	flex-direction: row;
+	margin-bottom: 8rpx;
+}
+
+.location-text {
+	font-size: 36rpx;
+	font-weight: 700;
+	color: #2c3e50;
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.location-superscript {
+	font-size: 24rpx;
+	font-weight: normal;
+	color: #2c3e50;
+	line-height: 1;
+	margin-left: 2rpx;
+	margin-top: 4rpx;
+}
+
+.location-rest {
+	font-size: 36rpx;
+	font-weight: 700;
+	color: #2c3e50;
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.neighbor-info {
+	font-size: 24rpx;
+	color: #5a6c7d;
+	font-weight: 400;
+	line-height: 1.4;
 }
 
 .action-button image {

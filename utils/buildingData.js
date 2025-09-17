@@ -41,7 +41,6 @@ const VILLA_BUILDINGS = [
 export function generateBuildings() {
     const flatBuildings = FLAT_BUILDINGS.map(([building, units, maxFloor, row]) => ({
         building,
-        name: `${building}栋`,
         type: 'flat',
         unitCount: units.length,
         maxFloor,
@@ -54,7 +53,6 @@ export function generateBuildings() {
 
     const villaBuildings = VILLA_BUILDINGS.map(([building, units, row]) => ({
         building,
-        name: `${building}栋别墅区`,
         type: 'villa',
         unitCount: units.length,
         maxFloor: 3,
@@ -130,7 +128,7 @@ function generateFlatUnits(building, units, maxFloor) {
                     floor,
                     door,
                     name: `${floor}${door === 1 ? '01' : '02'}`,
-                    fullName: `${building}栋${floor}层${unitNum}单元${door}号`
+                    fullName: `${building}${floor}层${unitNum}单元${door}号`
                 })
             }
         }
@@ -165,7 +163,7 @@ function generateVillaUnits(building, units) {
             floor,
             door: 1,
             name: `${floor}层${unitNum}号别墅`,
-            fullName: `${building}栋别墅区${floor}层${unitNum}号别墅`
+            fullName: `${building}别墅区${floor}层${unitNum}号别墅`
         }))
     }))
 }
