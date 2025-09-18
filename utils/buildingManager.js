@@ -1,4 +1,61 @@
 // Building数据管理器 - 单例模式
+// 户型尺寸常量
+const SIZE_141 = 0;
+const SIZE_160 = 1;
+const SIZE_190 = 2;
+const SIZE_251 = 3;
+const SIZE_Villa = 4;
+
+// 户型颜色映射
+const COLOR = ['#F3F9A780', '#6dd5ed80', '#FBD78680', '#FF000080', '#67b26f80'];
+
+// 单元-户型映射表（单元号: [2号门户型, 1号门户型]）
+const UNIT_SIZE_MAP = {
+    37: [SIZE_141, SIZE_160],
+    24: [SIZE_141, SIZE_160],
+    9: [SIZE_141, SIZE_141],
+    8: [SIZE_141, SIZE_141],
+    7: [SIZE_141, SIZE_141],
+    6: [SIZE_141, SIZE_141],
+    36: [SIZE_160, SIZE_190],
+    23: [SIZE_160, SIZE_190],
+    35: [SIZE_190, SIZE_160],
+    22: [SIZE_190, SIZE_160],
+    34: [SIZE_160, SIZE_160],
+    21: [SIZE_160, SIZE_160],
+}
+
+// 简化的建筑配置
+const FLAT_BUILDINGS = [
+	[1, [], 17, 0],
+	[5, [], 16, 0],
+	[2, [37, 36], 17, 1],
+	[3, [24, 23], 17, 2],
+	[4, [9, 8],17, 3],
+	[6, [], 16, 0],
+	[10, [], 17, 0],
+	[9, [35, 34], 17, 1],
+	[8, [22, 21], 16, 2],
+	[7, [7, 6], 17, 3]
+]
+
+const VILLA_BUILDINGS = [
+	[11, [], 0],
+	[12, [], 1],
+	[13, [], 2],
+    [14, [28, 27], 3],
+	[15, [20, 19], 4],
+	[16, [14, 13], 5],
+	[17, [5, 4], 6],
+	[24, [], 0],
+	[23, [], 1],
+	[22, [], 2],
+	[21, [26, 25], 3],
+	[20, [18, 17], 4],
+	[19, [12, 11, 10], 5],
+	[18, [3, 2, 1], 6]
+]
+
 class BuildingManager {
 	constructor() {
 		this.buildingsData = null
@@ -21,41 +78,10 @@ class BuildingManager {
 		}
 	}
 
-	// 加载building数据（硬编码的静态数据）
+	// 加载building数据（使用内部定义的静态数据）
 	async loadBuildingsData() {
-		// 这里写死building数据，这些静态数据来自buildingData.js的定义
 		// FLAT_BUILDINGS格式: [building, units, maxFloor, row]
 		// VILLA_BUILDINGS格式: [building, units, row]
-
-		const FLAT_BUILDINGS = [
-			[1, [], 17, 0],
-			[5, [], 16, 0],
-			[2, [37, 36], 17, 1],
-			[3, [24, 23], 17, 2],
-			[4, [9, 8], 17, 3],
-			[6, [], 16, 0],
-			[10, [], 17, 0],
-			[9, [35, 34], 17, 1],
-			[8, [22, 21], 16, 2],
-			[7, [7, 6], 17, 3]
-		]
-
-		const VILLA_BUILDINGS = [
-			[11, [], 0],
-			[12, [], 1],
-			[13, [], 2],
-			[14, [28, 27], 3],
-			[15, [20, 19], 4],
-			[16, [14, 13], 5],
-			[17, [5, 4], 6],
-			[24, [], 0],
-			[23, [], 1],
-			[22, [], 2],
-			[21, [26, 25], 3],
-			[20, [18, 17], 4],
-			[19, [12, 11, 10], 5],
-			[18, [3, 2, 1], 6]
-		]
 
 		this.buildingsData = [
 			...FLAT_BUILDINGS.map(([building, units, maxFloor, row]) => ({
@@ -312,11 +338,95 @@ class BuildingManager {
 		}
 	}
 
+	// 获取单元双色映射（用于UnitDice3D组件）
+	// 返回格式: { leftColor: string, rightColor: string }
+	getUnitColors(unitNumber) {
+		// 默认颜色（当单元未在UNIT_SIZE_MAP中定义时）
+		const defaultColors = {
+			leftColor: COLOR[4],
+			rightColor: COLOR[4]
+		}
+
+		// 检查单元是否有户型映射
+		const unitSizes = UNIT_SIZE_MAP[unitNumber]
+		if (!unitSizes || unitSizes.length !== 2) {
+			console.warn(`单元 ${unitNumber} 未找到户型映射，使用默认颜色`)
+			return defaultColors
+		}
+
+		try {
+			// unitSizes[0] = 2号门颜色（左侧）, unitSizes[1] = 1号门颜色（右侧）
+			const leftSizeIndex = unitSizes[0]
+			const rightSizeIndex = unitSizes[1]
+
+			return {
+				leftColor: COLOR[leftSizeIndex] || defaultColors.leftColor,
+				rightColor: COLOR[rightSizeIndex] || defaultColors.rightColor
+			}
+		} catch (error) {
+			console.error(`获取单元 ${unitNumber} 颜色映射失败:`, error)
+			return defaultColors
+		}
+	}
+
+	// 获取单元户型信息（详细版本）
+	getUnitSizeInfo(unitNumber) {
+		const unitSizes = UNIT_SIZE_MAP[unitNumber]
+		if (!unitSizes || unitSizes.length !== 2) {
+			return null
+		}
+
+		const sizeNames = ['141㎡', '160㎡', '190㎡', '251㎡', '别墅']
+
+		return {
+			unit: unitNumber,
+			leftDoor: {
+				door: 2, // 2号门在左侧
+				size: unitSizes[0],
+				sizeName: sizeNames[unitSizes[0]] || '未知户型',
+				color: COLOR[unitSizes[0]] || '#F3F9A780'
+			},
+			rightDoor: {
+				door: 1, // 1号门在右侧
+				size: unitSizes[1],
+				sizeName: sizeNames[unitSizes[1]] || '未知户型',
+				color: COLOR[unitSizes[1]] || '#F3F9A780'
+			}
+		}
+	}
+
 	// 重置数据（用于测试或强制重新加载）
 	reset() {
 		this.buildingsData = null
 		this.isInitialized = false
 		console.log('Building管理器已重置')
+	}
+
+	// 获取户型常量（供外部使用）
+	getSizeConstants() {
+		return {
+			SIZE_141,
+			SIZE_160,
+			SIZE_190,
+			SIZE_251,
+			SIZE_Villa
+		}
+	}
+
+	// 获取颜色数组
+	getColors() {
+		return COLOR
+	}
+
+	// 获取单元户型映射表
+	getUnitSizeMap() {
+		return UNIT_SIZE_MAP
+	}
+
+	// 获取户型名称
+	getSizeName(sizeIndex) {
+		const sizeNames = ['141㎡', '160㎡', '190㎡', '251㎡', '别墅']
+		return sizeNames[sizeIndex] || '未知户型'
 	}
 }
 

@@ -45,7 +45,7 @@ const units = ref<any[]>([]) // 单元数据
 // 计算容器样式
 const getUnitsContainerClass = () => {
   const unitCount = units.value.length
-  const hasVillaUnits = units.value.some(unit => unit.unit > 10)
+  const hasVillaUnits = props.buildingNumber > 10
 
   let classes = []
   if (unitCount === 2) {
