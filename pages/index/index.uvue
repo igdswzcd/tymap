@@ -756,7 +756,7 @@ onMounted(async () => {
 	position: relative;
 	height: 100%;
 	min-width: 140rpx;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	background: linear-gradient(135deg, #F7F8F8 0%, #ACBB78 100%);
 	max-width: 200rpx;
 	display: flex;
 	align-items: center;
@@ -779,7 +779,7 @@ onMounted(async () => {
 	padding-left: 60rpx;
 	border-top-left-radius: 0;
 	border-bottom-left-radius: 0;
-	background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+	background: linear-gradient(135deg, #F1F2B5 0%, #135058 100%);
 	border: 3rpx solid rgba(255, 255, 255, 0.8);
 	box-shadow:
 		0 8rpx 16rpx rgba(240, 147, 251, 0.3),
@@ -795,7 +795,7 @@ onMounted(async () => {
 	padding-left: 60rpx;
 	border-top-left-radius: 0;
 	border-bottom-left-radius: 0;
-	background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+	background: linear-gradient(135deg, #003973 0%, #E5E5BE 100%);
 	border: 3rpx solid rgba(255, 255, 255, 0.8);
 	box-shadow:
 		0 8rpx 16rpx rgba(79, 172, 254, 0.3),
@@ -824,7 +824,7 @@ onMounted(async () => {
 .internal-ribbon-text {
 	font-size: 32rpx;
 	font-weight: 600;
-	color: #2c3e50;
+	color: #444;
 	white-space: nowrap;
 	position: relative;
 	z-index: 3;
