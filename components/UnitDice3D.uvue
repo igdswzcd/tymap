@@ -1,10 +1,7 @@
 <template>
   <view :class="['unit-dice-' + componentId, 'box']" ref="boxRef" :style="diceStyle">
     <view class="front face" :style="frontFaceStyle">
-      <view v-if="disabled" class="lock-icon">
-        <text>🔒</text>
-      </view>
-      <view v-else class="dice-content">
+      <view class="dice-content">
 
         <!-- 左下角数据区域 -->
         <view class="bottom-left-data">

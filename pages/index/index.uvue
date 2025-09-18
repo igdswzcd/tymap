@@ -1,5 +1,13 @@
 <template>
 	<view class="container">
+		<!-- Loading Overlay -->
+		<view v-if="isLoading" class="loading-overlay">
+			<view class="loading-content">
+				<view class="loading-spinner"></view>
+				<text class="loading-text">{{ loadingText }}</text>
+			</view>
+		</view>
+
 		<!-- 主要内容区域 - 容器 -->
 		<view class="main-content">
 			<BuildingView @buildingTap="onBuildingTap" ref="buildingViewRef" />
@@ -118,15 +126,21 @@ import BuildingView from '@/components/BuildingView.uvue'
 import { getUserOpenid } from '@/utils/mockData.uts'
 import dataManager from '@/utils/dataManager.js'
 import buildingManager from '@/utils/buildingManager.js'
-import checkinStore, { type BreadcrumbItem } from '@/store/index.uts'
+import {checkinStore, type BreadcrumbItem } from '@/store/index.uts'
 
 const buildingViewRef = ref()
 
 // 用户角色状态
+// Loading state
+const isLoading = ref(false)
+const loadingText = ref('正在加载...')
+
+
+// 用户角色状态
 const userRole = reactive({
-	isResident: true,
-	isSuperAdmin: true,
-	openid: 'openid_2_36_1_1'
+	isResident: false,
+	isSuperAdmin: false,
+	openid: ''
 })
 
 // 入住按钮文本 - 使用全局状态管理
@@ -415,42 +429,122 @@ const getDoorResidents = async (userData: any) => {
 	}
 }
 
+// 微信登录获取用户信息
+const wechatLogin = async () => {
+	return new Promise((resolve, reject) => {
+		uni.login({
+			provider: 'weixin',
+			scopes: 'auth_user',
+			onlyAuthorize: true,
+			success: (loginRes) => {
+				console.log('微信登录成功:', loginRes)
+
+				// 获取用户信息
+				uni.getUserInfo({
+					provider: 'weixin',
+					withCredentials: true,
+					lang: 'zh_CN',
+					success: (userInfoRes) => {
+						console.log('获取用户信息成功:', userInfoRes)
+						resolve({
+							code: loginRes.code,
+							userInfo: userInfoRes.userInfo
+						})
+					},
+					fail: (err) => {
+						console.error('获取用户信息失败:', err)
+						// 即使获取用户信息失败，也返回登录code
+						resolve({
+							code: loginRes.code,
+							userInfo: null
+						})
+					}
+				})
+			},
+			fail: (err) => {
+				console.error('微信登录失败:', err)
+				reject(err)
+			}
+		})
+	})
+}
+
+
 // 检查用户身份
 const checkUserRole = async () => {
 	try {
-		const openid = await getUserOpenid()
-		userRole.openid = openid as string
+		loadingText.value = '正在验证用户身份...'
 
-		// 使用dataManager查询用户信息（从缓存读取）
-		const userData = await dataManager.getResidentByOpenid(openid)
+		console.log('trylogin')
+		// 微信登录获取用户信息
+		const wechatRes = await wechatLogin() as any
+		console.log(wechatRes, 'wxres')
 
-		if (userData) {
-			userRole.isResident = userData.apply_status === 'trusted'
-			userRole.isSuperAdmin = userData.is_super_admin || userData.is_unit_admin || false
+		if (wechatRes && wechatRes.code) {
+			userRole.openid = wechatRes.userInfo?.openid || wechatRes.code
 
-			// 更新用户信息显示
-			userInfo.location = formatUserLocation(userData)
-			updateLocationDisplay(userInfo.location)
-			userInfo.neighborCount = await getUnitNeighborCount(userData)
-			userInfo.doorResidents = await getDoorResidents(userData)
+			// 使用dataManager查询用户信息（从缓存读取）
+			const userData = await dataManager.getResidentByOpenid(userRole.openid)
 
-			console.log('用户身份:', userRole)
-			console.log('用户信息:', userInfo)
+			if (userData) {
+				userRole.isResident = userData.apply_status === 'trusted'
+				userRole.isSuperAdmin = userData.is_super_admin || userData.is_unit_admin || false
+
+				// 更新用户信息显示
+				userInfo.location = formatUserLocation(userData)
+				updateLocationDisplay(userInfo.location)
+				userInfo.neighborCount = await getUnitNeighborCount(userData)
+				userInfo.doorResidents = await getDoorResidents(userData)
+
+				console.log('用户身份:', userRole)
+				console.log('用户信息:', userInfo)
+			} else {
+				userRole.isResident = false
+				userRole.isSuperAdmin = false
+				console.log('用户不是住户')
+			}
 		} else {
-			userRole.isResident = false
-			userRole.isSuperAdmin = false
-			console.log('用户不是住户')
+			throw new Error('微信登录失败')
 		}
 	} catch (error) {
 		console.error('检查用户身份失败:', error)
-		userRole.isResident = false
-		userRole.isSuperAdmin = false
+
+		// 尝试使用旧的获取openid方式作为备用
+		try {
+			loadingText.value = '正在获取用户信息...'
+			const openid = await getUserOpenid()
+			userRole.openid = openid as string
+
+			const userData = await dataManager.getResidentByOpenid(openid)
+
+			if (userData) {
+				userRole.isResident = userData.apply_status === 'trusted'
+				userRole.isSuperAdmin = userData.is_super_admin || userData.is_unit_admin || false
+
+				// 更新用户信息显示
+				userInfo.location = formatUserLocation(userData)
+				updateLocationDisplay(userInfo.location)
+				userInfo.neighborCount = await getUnitNeighborCount(userData)
+				userInfo.doorResidents = await getDoorResidents(userData)
+			} else {
+				userRole.isResident = false
+				userRole.isSuperAdmin = false
+			}
+		} catch (fallbackError) {
+			console.error('备用方式也失败:', fallbackError)
+			userRole.isResident = false
+			userRole.isSuperAdmin = false
+		}
 	}
 }
 
 // 生命周期
 onMounted(async () => {
 	try {
+		// 显示loading状态
+		isLoading.value = true
+		loadingText.value = '正在初始化...'
+
 		// 初始化数据管理器（加载residents数据到缓存），传入uniCloud实例
 		console.log('初始化数据管理器...')
 		await dataManager.init(uniCloud)
@@ -466,6 +560,9 @@ onMounted(async () => {
 			title: '初始化失败',
 			icon: 'none'
 		})
+	} finally {
+		// 隐藏loading状态
+		isLoading.value = false
 	}
 })
 </script>
@@ -479,6 +576,53 @@ onMounted(async () => {
 	--gradient-level2-s: #F1F2B5;
 	--gradient-level2-e: #135058;
 }
+
+/* Loading Overlay */
+.loading-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(0, 0, 0, 0.6);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	z-index: 9999;
+}
+
+.loading-content {
+	background-color: rgba(255, 255, 255, 0.95);
+	border-radius: 20rpx;
+	padding: 60rpx 40rpx;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.2);
+}
+
+.loading-spinner {
+	width: 80rpx;
+	height: 80rpx;
+	border: 8rpx solid #f3f3f3;
+	border-top: 8rpx solid #0575E6;
+	border-radius: 50%;
+	animation: spin 1s linear infinite;
+	margin-bottom: 30rpx;
+}
+
+.loading-text {
+	font-size: 32rpx;
+	color: #333;
+	font-weight: 500;
+}
+
+@keyframes spin {
+	0% { transform: rotate(0deg); }
+	100% { transform: rotate(360deg); }
+}
+
 .container {
 	height: 100%;
 	background-color: #f0f0f0;

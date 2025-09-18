@@ -103,7 +103,6 @@
 			:buildingNumber="storeState.selectedBuilding"
 			:unitNumber="storeState.selectedUnit"
 			@close="handleFloorDoorViewClose"
-			@doorTap="onDoorTap"
 		/>
 	</view>
 </template>
@@ -293,15 +292,10 @@ const initializeTestData = async () => {
 		if (insertResult && insertResult.skipped) {
 			console.log('测试数据生成已跳过:', insertResult.reason)
 			// 即使跳过也要刷新缓存，确保显示最新数据
-			await dataManager.refreshData()
 			return
 		}
 
 		console.log('测试数据初始化成功，插入结果:', insertResult)
-
-		// 等待一下确保数据库操作完成
-		await new Promise(resolve => setTimeout(resolve, 500))
-
 		// 刷新dataManager缓存
 		console.log('开始刷新dataManager缓存...')
 		await dataManager.refreshData()
@@ -473,6 +467,7 @@ onMounted(async () => {
 	top: calc(50% - 75rpx);
 	z-index: 10;
 	transition: left 1s cubic-bezier(0.4, 0, 0.6, 1);
+	overflow: visible;
 }
 
 .area-switch-wrapper.left-position {

@@ -1,114 +1,32 @@
 <template>
-  <view v-if="visible" class="door-modal-overlay" @tap.self="onCancel">
-    <view class="door-modal">
-      <!-- 模态框标题 -->
-      <view class="modal-header">
-        <text class="modal-title">门牌确认</text>
-        <view class="close-btn" @tap="onCancel">
-          <text class="close-icon">×</text>
-        </view>
+  <view v-if="visible" class="modal-overlay">
+    <view class="modal-content">
+      <view class="avatar-section">
+        <button
+          class="avatar-wrapper"
+          open-type="chooseAvatar"
+        >
+         <image class="avatar" :src="userInfo.avatar || 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0'"></image>
+		</button>
+	  </view>
+      <view class="nickname-section">
+        <input
+          type="nickname"
+          class="nickname-input"
+          v-model="userInfo.nickname"
+          placeholder="使用微信昵称更方便"
+        />
       </view>
-
-      <!-- 门牌信息展示 -->
-      <view class="door-info-section">
-        <view class="door-display">
-          <text class="door-code">{{ doorCode }}</text>
-          <view class="status-badge" :class="isOccupied ? 'occupied' : 'available'">
-            <text class="status-text">{{ isOccupied ? '已入住' : '空置' }}</text>
-          </view>
-        </view>
-        <view class="location-info">
-          <text class="location-text">{{ buildingNumber }}栋 {{ unitNumber }}单元 {{ floorNumber }}层</text>
-        </view>
-      </view>
-
-      <!-- 用户信息表单 -->
-      <view class="user-form-section">
-        <view class="form-title">
-          <text class="form-title-text">住户信息</text>
-        </view>
-
-        <view class="form-group">
-          <text class="form-label">姓名 *</text>
-          <input
-            class="form-input"
-            v-model="formData.name"
-            placeholder="请输入真实姓名"
-            maxlength="20"
-          />
-        </view>
-
-        <view class="form-group">
-          <text class="form-label">手机号 *</text>
-          <input
-            class="form-input"
-            v-model="formData.phone"
-            placeholder="请输入手机号"
-            type="number"
-            maxlength="11"
-          />
-        </view>
-
-        <view class="form-group">
-          <text class="form-label">身份证号 *</text>
-          <input
-            class="form-input"
-            v-model="formData.idCard"
-            placeholder="请输入身份证号"
-            maxlength="18"
-          />
-        </view>
-
-        <view class="form-group">
-          <text class="form-label">备注信息</text>
-          <textarea
-            class="form-textarea"
-            v-model="formData.remark"
-            placeholder="请输入备注信息（选填）"
-            maxlength="100"
-          />
-        </view>
-      </view>
-
-      <!-- 已有住户信息展示 -->
-      <view v-if="existingResident" class="existing-resident-section">
-        <view class="existing-title">
-          <text class="existing-title-text">当前住户信息</text>
-        </view>
-        <view class="resident-info-card">
-          <view class="info-row">
-            <text class="info-label">姓名：</text>
-            <text class="info-value">{{ existingResident.nickname }}</text>
-          </view>
-          <view class="info-row">
-            <text class="info-label">手机：</text>
-            <text class="info-value">{{ maskPhone(existingResident.phone) }}</text>
-          </view>
-          <view class="info-row">
-            <text class="info-label">状态：</text>
-            <text class="info-value status" :class="existingResident.apply_status">
-              {{ getStatusText(existingResident.apply_status) }}
-            </text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 操作按钮 -->
-      <view class="modal-actions">
-        <view class="action-btn cancel-btn" @tap="onCancel">
-          <text class="action-text">取消</text>
-        </view>
-        <view class="action-btn confirm-btn" @tap="onConfirm" :class="{ 'disabled': !isFormValid }">
-          <text class="action-text">{{ existingResident ? '申请更换' : '确认入住' }}</text>
-        </view>
+      <view class="modal-buttons">
+        <button class="cancel-btn" @tap="onCancel">取消</button>
+        <button class="confirm-btn" @tap="onConfirm">确认</button>
       </view>
     </view>
   </view>
 </template>
 
 <script setup lang="uts">
-import { ref, computed, watch } from 'vue'
-import dataManager from '@/utils/dataManager.js'
+import { ref, reactive, watch } from 'vue'
 
 // Props
 const props = defineProps({
@@ -145,464 +63,142 @@ const props = defineProps({
 // Emits
 const emit = defineEmits(['close', 'confirm'])
 
-// 响应式数据
-const formData = ref({
-  name: '',
-  phone: '',
-  idCard: '',
-  remark: ''
-})
-
-// 计算属性
-const doorCode = computed(() => {
-  return `F${props.floorNumber}${props.doorNumber === 1 ? '01' : '02'}`
-})
-
-const isFormValid = computed(() => {
-  return formData.value.name.trim() &&
-         formData.value.phone.trim() &&
-         formData.value.idCard.trim() &&
-         isValidPhone(formData.value.phone) &&
-         isValidIdCard(formData.value.idCard)
+// 用户信息
+const userInfo = reactive({
+  avatar: '',
+  nickname: ''
 })
 
 // 监听器
 watch(() => props.visible, (newVal) => {
   if (newVal) {
-    resetForm()
+    // 从本地存储恢复之前的信息
+    try {
+      userInfo.avatar = uni.getStorageSync('userAvatar') || ''
+      userInfo.nickname = uni.getStorageSync('userNickname') || ''
+    } catch (e) {
+      console.error('读取用户信息失败:', e)
+    }
   }
 })
 
-// 方法
-const resetForm = () => {
-  formData.value = {
-    name: '',
-    phone: '',
-    idCard: '',
-    remark: ''
-  }
-}
-
-const isValidPhone = (phone: string) => {
-  return /^1[3-9]\d{9}$/.test(phone)
-}
-
-const isValidIdCard = (idCard: string) => {
-  return /^[1-9]\d{5}(18|19|20)\d{2}((0[1-9])|(1[0-2]))(([0-2][1-9])|10|20|30|31)\d{3}[0-9Xx]$/.test(idCard)
-}
-
-const maskPhone = (phone: string) => {
-  if (!phone || phone.length < 11) return phone
-  return phone.substring(0, 3) + '****' + phone.substring(7)
-}
-
-const getStatusText = (status: string) => {
-  const statusMap: Record<string, string> = {
-    'trusted': '已认证',
-    'verifying': '审核中',
-    'rejected': '已拒绝'
-  }
-  return statusMap[status] || status
+const onNicknameInput = (e: any) => {
+  userInfo.nickname = e.detail.value
 }
 
 const onCancel = () => {
   emit('close')
 }
 
-const onConfirm = async () => {
-  if (!isFormValid.value) {
+const onConfirm = () => {
+  if (!userInfo.nickname) {
     uni.showToast({
-      title: '请填写完整信息',
+      title: '请输入昵称',
       icon: 'none'
     })
     return
   }
 
+  // 保存用户信息到本地存储
   try {
-    // 获取用户openid（这里假设已经登录）
-    const openid = getCurrentUserOpenid()
-    if (!openid) {
-      uni.showToast({
-        title: '请先登录',
-        icon: 'none'
-      })
-      return
-    }
-
-    // 检查手机号和身份证号是否已被使用
-    const existingPhone = await dataManager.getResidentByPhone(formData.value.phone.trim())
-    const existingIdCard = await dataManager.getResidentByIdCard(formData.value.idCard.trim())
-
-    if (existingPhone && (!existingPhone.openid || existingPhone.openid !== openid)) {
-      uni.showToast({
-        title: '该手机号已被其他用户使用',
-        icon: 'none'
-      })
-      return
-    }
-
-    if (existingIdCard && (!existingIdCard.openid || existingIdCard.openid !== openid)) {
-      uni.showToast({
-        title: '该身份证号已被其他用户使用',
-        icon: 'none'
-      })
-      return
-    }
-
-    // 检查用户是否已有登记记录
-    const existingUser = await dataManager.getResidentByOpenid(openid)
-
-    const residentData = {
-      action: existingUser ? 'update' : 'create',
-      openid: openid,
-      nickname: formData.value.name.trim(),
-      phone: formData.value.phone.trim(),
-      id_card: formData.value.idCard.trim(),
-      remark: formData.value.remark.trim(),
-      building: props.buildingNumber,
-      unit: props.unitNumber,
-      floor: props.floorNumber,
-      door: props.doorNumber,
-      apply_status: 'verifying',
-      create_time: new Date().toISOString(),
-      update_time: new Date().toISOString()
-    }
-
-    if (existingUser) {
-      // 用户已登记，更新门牌信息和状态
-      residentData.id = existingUser.id
-      residentData.create_time = existingUser.create_time
-    }
-
-    // 执行数据库操作
-    await dataManager.addOrUpdateResident(residentData)
-
-    const message = existingUser
-      ? `申请更换到${doorCode.value}，等待审核`
-      : `申请入住${doorCode.value}，等待审核`
-
-    emit('confirm', {
-      action: residentData.action,
-      data: residentData,
-      message: message
-    })
-  } catch (error) {
-    console.error('确认入住失败:', error)
-    uni.showToast({
-      title: '操作失败，请重试',
-      icon: 'none'
-    })
+    uni.setStorageSync('userAvatar', userInfo.avatar)
+    uni.setStorageSync('userNickname', userInfo.nickname)
+  } catch (e) {
+    console.error('保存用户信息失败:', e)
   }
-}
 
-// 模拟获取当前用户openid（实际项目中应该从登录状态获取）
-const getCurrentUserOpenid = () => {
-  // 这里应该从实际的登录状态获取openid
-  // 暂时返回一个模拟值
-  return 'mock_user_openid_' + Date.now()
+  const doorCode = `${props.floorNumber}${props.doorNumber === 1 ? '01' : '02'}`
+  const message = props.isOccupied
+    ? `申请更换到${doorCode}，等待审核`
+    : `申请入住${doorCode}，等待审核`
+
+  emit('confirm', {
+    avatar: userInfo.avatar,
+    nickname: userInfo.nickname,
+    message: message
+  })
 }
 
 // 暴露方法给父组件
 defineExpose({
-  resetForm
+  userInfo
 })
 </script>
 
 <style>
-.door-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
+.modal-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(0, 0, 0, 0.5);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	z-index: 9999;
+}
+
+.modal-content {
+	background-color: #fff;
+	border-radius: 20rpx;
+	padding: 60rpx;
+	width: 600rpx;
+}
+
+.avatar-section {
+	display: flex;
+	justify-content: center;
+	margin-bottom: 40rpx;
+}
+
+.avatar-wrapper {
+	width: 160rpx;
+	height: 160rpx;
+	border-radius: 50%;
+	border: 2rpx solid #eee;
+}
+.avatar {
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(8rpx);
-}
-
-.door-modal {
-  width: 90%;
-  max-width: 600rpx;
-  max-height: 85vh;
-  background: #ffffff;
-  border-radius: 24rpx;
-  box-shadow: 0 16rpx 64rpx rgba(0, 0, 0, 0.2);
-  overflow: hidden;
-  animation: modalSlideIn 0.3s ease-out;
-}
-
-@keyframes modalSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(100rpx) scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 32rpx 40rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
-
-.modal-title {
-  font-size: 36rpx;
-  font-weight: 700;
-  color: #ffffff;
-}
-
-.close-btn {
-  width: 60rpx;
-  height: 60rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  transition: all 0.3s ease;
 }
 
-.close-btn:active {
-  background: rgba(255, 255, 255, 0.3);
-  transform: scale(0.95);
+.nickname-section {
+	margin-bottom: 40rpx;
 }
 
-.close-icon {
-  font-size: 40rpx;
-  color: #ffffff;
-  font-weight: 300;
+.nickname-input {
+	width: 100%;
+	height: 80rpx;
+	border: 1rpx solid #ddd;
+	border-radius: 10rpx;
+	padding: 0 20rpx;
+	font-size: 32rpx;
 }
 
-.door-info-section {
-  padding: 32rpx 40rpx;
-  background: #f8f9fa;
-  border-bottom: 2rpx solid #e9ecef;
+.modal-buttons {
+	display: flex;
+	justify-content: space-between;
+	gap: 30rpx;
 }
 
-.door-display {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16rpx;
-}
-
-.door-code {
-  font-size: 48rpx;
-  font-weight: 900;
-  color: #2c3e50;
-  letter-spacing: 2rpx;
-}
-
-.status-badge {
-  padding: 8rpx 24rpx;
-  border-radius: 20rpx;
-  font-size: 24rpx;
-  font-weight: 600;
-}
-
-.status-badge.occupied {
-  background: #e3f2fd;
-  color: #1976d2;
-}
-
-.status-badge.available {
-  background: #e8f5e8;
-  color: #2e7d32;
-}
-
-.location-info {
-  margin-top: 16rpx;
-}
-
-.location-text {
-  font-size: 28rpx;
-  color: #6c757d;
-  font-weight: 500;
-}
-
-.user-form-section {
-  padding: 32rpx 40rpx;
-}
-
-.form-title {
-  margin-bottom: 24rpx;
-}
-
-.form-title-text {
-  font-size: 32rpx;
-  font-weight: 700;
-  color: #2c3e50;
-}
-
-.form-group {
-  margin-bottom: 24rpx;
-}
-
-.form-label {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 600;
-  color: #495057;
-  margin-bottom: 12rpx;
-}
-
-.form-input {
-  width: 100%;
-  padding: 24rpx 32rpx;
-  border: 2rpx solid #e9ecef;
-  border-radius: 16rpx;
-  font-size: 28rpx;
-  background: #ffffff;
-  transition: all 0.3s ease;
-  box-sizing: border-box;
-}
-
-.form-input:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 6rpx rgba(102, 126, 234, 0.1);
-}
-
-.form-textarea {
-  width: 100%;
-  min-height: 120rpx;
-  padding: 24rpx 32rpx;
-  border: 2rpx solid #e9ecef;
-  border-radius: 16rpx;
-  font-size: 28rpx;
-  background: #ffffff;
-  resize: vertical;
-  box-sizing: border-box;
-}
-
-.existing-resident-section {
-  padding: 32rpx 40rpx;
-  background: #fff3cd;
-  border-top: 2rpx solid #ffeaa7;
-}
-
-.existing-title {
-  margin-bottom: 16rpx;
-}
-
-.existing-title-text {
-  font-size: 28rpx;
-  font-weight: 600;
-  color: #856404;
-}
-
-.resident-info-card {
-  background: #ffffff;
-  border-radius: 16rpx;
-  padding: 24rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
-}
-
-.info-row {
-  display: flex;
-  align-items: center;
-  margin-bottom: 12rpx;
-}
-
-.info-row:last-child {
-  margin-bottom: 0;
-}
-
-.info-label {
-  font-size: 26rpx;
-  color: #6c757d;
-  font-weight: 500;
-  width: 120rpx;
-}
-
-.info-value {
-  font-size: 26rpx;
-  color: #495057;
-  font-weight: 600;
-  flex: 1;
-}
-
-.info-value.status {
-  padding: 4rpx 12rpx;
-  border-radius: 8rpx;
-  font-size: 24rpx;
-}
-
-.info-value.status.trusted {
-  background: #e8f5e8;
-  color: #2e7d32;
-}
-
-.info-value.status.verifying {
-  background: #fff3cd;
-  color: #856404;
-}
-
-.info-value.status.rejected {
-  background: #f8d7da;
-  color: #721c24;
-}
-
-.modal-actions {
-  display: flex;
-  padding: 32rpx 40rpx;
-  gap: 20rpx;
-  background: #f8f9fa;
-}
-
-.action-btn {
-  flex: 1;
-  height: 88rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 16rpx;
-  font-size: 32rpx;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  cursor: pointer;
-}
-
-.action-btn:active {
-  transform: scale(0.98);
+.cancel-btn,
+.confirm-btn {
+	flex: 1;
+	height: 80rpx;
+	border: none;
+	border-radius: 10rpx;
+	font-size: 32rpx;
 }
 
 .cancel-btn {
-  background: #ffffff;
-  border: 2rpx solid #dee2e6;
-  color: #6c757d;
-}
-
-.cancel-btn:active {
-  background: #f8f9fa;
+	background-color: #f5f5f5;
+	color: #333;
 }
 
 .confirm-btn {
-  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-  color: #ffffff;
-  box-shadow: 0 4rpx 16rpx rgba(40, 167, 69, 0.3);
-}
-
-.confirm-btn:active {
-  background: linear-gradient(135deg, #218838 0%, #1c9c7c 100%);
-}
-
-.confirm-btn.disabled {
-  background: #6c757d;
-  box-shadow: none;
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.action-text {
-  font-weight: 600;
+	background-color: #007aff;
+	color: #fff;
 }
 </style>
