@@ -40,9 +40,10 @@
 							class="internal-ribbon-breadcrumbs"
 						>
 							<view
-								v-for="index in displayButtonCount"
+								v-for="index in 3"
 								:key="index"
 								class="internal-ribbon-item"
+								:class="{ 'ribbon-hidden': index > displayButtonCount }"
 								@tap.stop="handleBreadcrumbTap(index)"
 							>
 								<view class="internal-ribbon-content">
@@ -786,14 +787,7 @@ onMounted(async () => {
 		inset 0 2rpx 4rpx rgba(255, 255, 255, 0.3);
 	z-index: 4;
 
-	/* 初始状态 - 用于动画 */
-	opacity: 0;
-	transform: translateX(-100rpx) scale(0.3);
-	/* 设置变换原点为左侧中心，避免右侧被遮挡 */
-	transform-origin: left center;
-
-	/* 应用动画 - 延迟出现 */
-	animation: ribbonSlideIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+	/* 初始状态和动画由新的CSS规则控制 */
 }
 .internal-ribbon-item:nth-child(3) {
 	margin-left: -70rpx;
@@ -809,15 +803,7 @@ onMounted(async () => {
 		inset 0 2rpx 4rpx rgba(255, 255, 255, 0.3);
 	z-index: 3;
 
-	/* 初始状态 - 用于动画 */
-	opacity: 0;
-	transform: translateX(-100rpx) scale(0.3);
-	/* 设置变换原点为左侧中心，避免右侧被遮挡 */
-	transform-origin: left center;
-
-	/* 应用动画 - 加速出现 */
-	animation: ribbonSlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-	animation-delay: 0.2s;
+	/* 初始状态和动画由新的CSS规则控制 */
 }
 
 /* 内部绶带内容 */
@@ -850,12 +836,63 @@ onMounted(async () => {
 	box-shadow: 0 1rpx 4rpx rgba(0, 0, 0, 0.2);
 }
 
+/* 隐藏的面包屑项 - 只控制可见性，不控制transform */
+.ribbon-hidden {
+	opacity: 0;
+	pointer-events: none;
+}
+
+/* 隐藏状态下的初始位置 - 为动画做准备 */
+.internal-ribbon-item:nth-child(2) {
+	/* 第二个面包屑项的初始状态 */
+	opacity: 0;
+	transform: translateX(-100rpx);
+}
+
+.internal-ribbon-item:nth-child(3) {
+	/* 第三个面包屑项的初始状态 */
+	opacity: 0;
+	transform: translateX(-100rpx);
+}
+
+/* 当面包屑项需要显示时，触发动画 */
+.internal-ribbon-item:nth-child(2):not(.ribbon-hidden) {
+	/* 移除默认样式，让动画生效 */
+	opacity: 1;
+	transform: translateX(0) scale(1);
+	/* 应用动画 - 延迟出现 */
+	animation: ribbonSlideIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.internal-ribbon-item:nth-child(3):not(.ribbon-hidden) {
+	/* 移除默认样式，让动画生效 */
+	opacity: 1;
+	transform: translateX(0) scale(1);
+	/* 应用动画 - 加速出现 */
+	animation: ribbonSlideIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* 当面包屑项需要隐藏时，触发退出动画 */
+.internal-ribbon-item:nth-child(2).ribbon-hidden {
+	opacity: 0;
+	pointer-events: none;
+	/* 应用退出动画 */
+	animation: ribbonSlideOut 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.internal-ribbon-item:nth-child(3).ribbon-hidden {
+	opacity: 0;
+	pointer-events: none;
+	/* 应用退出动画 */
+	animation: ribbonSlideOut 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
 
 /* 面包屑滑入动画 - 用于第二、三个圆形 */
 @keyframes ribbonSlideIn {
 	0% {
-		opacity: 0.5;
-		transform: translateX(-100rpx) scale(0.3);
+		opacity: 0;
+		transform: translateX(-100rpx) scale(1);
 	}
 	50% {
 		opacity: 1;
@@ -872,6 +909,18 @@ onMounted(async () => {
 	100% {
 		opacity: 1;
 		transform: translateX(0) scale(1);
+	}
+}
+
+/* 面包屑滑出动画 - 用于隐藏时的退出效果 */
+@keyframes ribbonSlideOut {
+	0% {
+		opacity: 1;
+		transform: translateX(0) scale(1);
+	}
+	100% {
+		opacity: 0;
+		transform: translateX(-100rpx) scale(0.8);
 	}
 }
 
