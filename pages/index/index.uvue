@@ -37,7 +37,6 @@
 					>
 						<!-- 按钮左侧的绶带面包屑 -->
 						<view
-							v-if="displayButtonCount > 0"
 							class="internal-ribbon-breadcrumbs"
 						>
 							<view
@@ -158,8 +157,7 @@ const getAvatarText = (resident: any) => {
 }
 
 // 获取面包屑项显示文字
-const getRibbonItemText = (index: number, totalCount: number) => {
-	console.log(index, totalCount)
+const getRibbonItemText = (index: number) => {
 	if (index === 1) {
 		// 第一个总是返回按钮
 		return '⟲'
@@ -735,6 +733,9 @@ onMounted(async () => {
 	flex: 4;
 	height: 140rpx;
 	width: 100%;
+	/* 确保transform动画不被裁剪 */
+	overflow: visible;
+	position: relative;
 }
 
 /* 按钮内部绶带面包屑组 */
@@ -744,6 +745,9 @@ onMounted(async () => {
 	flex-direction: row;
 	align-items: center;
 	z-index: 5;
+	/* 确保transform动画不被裁剪 */
+	overflow: visible;
+	position: relative;
 }
 
 /* 内部绶带项 - 圆角按钮效果 */
@@ -751,15 +755,22 @@ onMounted(async () => {
 	position: relative;
 	height: 100%;
 	min-width: 140rpx;
-	background: #fff;
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 	max-width: 200rpx;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	border-radius: 140rpx;
 	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-	box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+	border: 3rpx solid rgba(255, 255, 255, 0.8);
+	box-shadow:
+		0 8rpx 16rpx rgba(102, 126, 234, 0.3),
+		0 4rpx 8rpx rgba(0, 0, 0, 0.1),
+		inset 0 2rpx 4rpx rgba(255, 255, 255, 0.3);
 	z-index: 5;
+
+	/* 设置变换原点为左侧中心，避免右侧被遮挡 */
+	transform-origin: left center;
 }
 .internal-ribbon-item:nth-child(2) {
 	margin-left: -70rpx;
@@ -767,7 +778,22 @@ onMounted(async () => {
 	padding-left: 60rpx;
 	border-top-left-radius: 0;
 	border-bottom-left-radius: 0;
+	background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+	border: 3rpx solid rgba(255, 255, 255, 0.8);
+	box-shadow:
+		0 8rpx 16rpx rgba(240, 147, 251, 0.3),
+		0 4rpx 8rpx rgba(0, 0, 0, 0.1),
+		inset 0 2rpx 4rpx rgba(255, 255, 255, 0.3);
 	z-index: 4;
+
+	/* 初始状态 - 用于动画 */
+	opacity: 0;
+	transform: translateX(-100rpx) scale(0.3);
+	/* 设置变换原点为左侧中心，避免右侧被遮挡 */
+	transform-origin: left center;
+
+	/* 应用动画 - 延迟出现 */
+	animation: ribbonSlideIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 .internal-ribbon-item:nth-child(3) {
 	margin-left: -70rpx;
@@ -775,7 +801,23 @@ onMounted(async () => {
 	padding-left: 60rpx;
 	border-top-left-radius: 0;
 	border-bottom-left-radius: 0;
+	background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+	border: 3rpx solid rgba(255, 255, 255, 0.8);
+	box-shadow:
+		0 8rpx 16rpx rgba(79, 172, 254, 0.3),
+		0 4rpx 8rpx rgba(0, 0, 0, 0.1),
+		inset 0 2rpx 4rpx rgba(255, 255, 255, 0.3);
 	z-index: 3;
+
+	/* 初始状态 - 用于动画 */
+	opacity: 0;
+	transform: translateX(-100rpx) scale(0.3);
+	/* 设置变换原点为左侧中心，避免右侧被遮挡 */
+	transform-origin: left center;
+
+	/* 应用动画 - 加速出现 */
+	animation: ribbonSlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+	animation-delay: 0.2s;
 }
 
 /* 内部绶带内容 */
@@ -802,6 +844,37 @@ onMounted(async () => {
 	z-index: 3;
 	text-align: center;
 }
+
+/* 内部绶带交互效果 */
+.internal-ribbon-item:active {
+	box-shadow: 0 1rpx 4rpx rgba(0, 0, 0, 0.2);
+}
+
+
+/* 面包屑滑入动画 - 用于第二、三个圆形 */
+@keyframes ribbonSlideIn {
+	0% {
+		opacity: 0.5;
+		transform: translateX(-100rpx) scale(0.3);
+	}
+	50% {
+		opacity: 1;
+		transform: translateX(10rpx) scale(1.05);
+	}
+	70% {
+		opacity: 1;
+		transform: translateX(-5rpx) scale(0.98);
+	}
+	85% {
+		opacity: 1;
+		transform: translateX(2rpx) scale(1.01);
+	}
+	100% {
+		opacity: 1;
+		transform: translateX(0) scale(1);
+	}
+}
+
 
 /* 内部绶带交互效果 */
 .internal-ribbon-item:active {

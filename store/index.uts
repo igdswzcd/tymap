@@ -211,15 +211,17 @@ export const checkinStore = {
 	// 获取当前步骤的显示按钮数量（包括圆形返回按钮）
 	getDisplayButtonCount(): number {
 		switch (checkinState.step) {
+			case 'idle':
+				return 1 // 只显示返回按钮
 			case 'selecting_building':
-				return 0
+				return 1 // 只显示返回按钮
 			case 'selecting_unit':
 				return 2 // 圆形返回按钮 + building按钮
 			case 'selecting_floor_door':
 			case 'confirming':
 				return 3 // 圆形返回按钮 + building按钮 + unit按钮
 			default:
-				return 0
+				return 1 // 默认显示返回按钮
 		}
 	}
 
