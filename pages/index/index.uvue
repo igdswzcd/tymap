@@ -127,6 +127,7 @@ import { getUserOpenid } from '@/utils/mockData.uts'
 import dataManager from '@/utils/dataManager.js'
 import buildingManager from '@/utils/buildingManager.js'
 import {checkinStore, type BreadcrumbItem } from '@/store/index.uts'
+import wechatAuth from '@/utils/wechatAuth'
 
 const buildingViewRef = ref()
 
@@ -429,44 +430,41 @@ const getDoorResidents = async (userData: any) => {
 	}
 }
 
-// 微信登录获取用户信息
+// 微信登录（使用新的工具类）
 const wechatLogin = async () => {
-	return new Promise((resolve, reject) => {
-		uni.login({
-			provider: 'weixin',
-			scopes: 'auth_user',
-			onlyAuthorize: true,
-			success: (loginRes) => {
-				console.log('微信登录成功:', loginRes)
+	loadingText.value = '正在微信登录...'
 
-				// 获取用户信息
-				uni.getUserInfo({
-					provider: 'weixin',
-					withCredentials: true,
-					lang: 'zh_CN',
-					success: (userInfoRes) => {
-						console.log('获取用户信息成功:', userInfoRes)
-						resolve({
-							code: loginRes.code,
-							userInfo: userInfoRes.userInfo
-						})
-					},
-					fail: (err) => {
-						console.error('获取用户信息失败:', err)
-						// 即使获取用户信息失败，也返回登录code
-						resolve({
-							code: loginRes.code,
-							userInfo: null
-						})
-					}
-				})
-			},
-			fail: (err) => {
-				console.error('微信登录失败:', err)
-				reject(err)
-			}
+	// 检查是否已有登录状态
+	const isLoggedIn = await wechatAuth.checkLoginStatus()
+	if (isLoggedIn) {
+		const openid = wechatAuth.getCurrentOpenid()
+		return {
+			code: '',
+			userInfo: null,
+			openid: openid
+		}
+	}
+
+	// 执行完整的登录流程
+	const result = await wechatAuth.completeLogin()
+
+	if (result.success && result.openid) {
+		// 保存登录状态
+		wechatAuth.saveLoginState({
+			openid: result.openid,
+			unionid: result.unionid,
+			session_key: result.session_key || '',
+			userinfo: result.userinfo
 		})
-	})
+
+		return {
+			code: '',
+			userInfo: result.userinfo,
+			openid: result.openid
+		}
+	} else {
+		throw new Error(result.error || '微信登录失败')
+	}
 }
 
 
@@ -475,13 +473,13 @@ const checkUserRole = async () => {
 	try {
 		loadingText.value = '正在验证用户身份...'
 
-		console.log('trylogin')
+		console.log('开始微信登录流程...')
 		// 微信登录获取用户信息
 		const wechatRes = await wechatLogin() as any
-		console.log(wechatRes, 'wxres')
+		console.log('微信登录结果:', wechatRes)
 
-		if (wechatRes && wechatRes.code) {
-			userRole.openid = wechatRes.userInfo?.openid || wechatRes.code
+		if (wechatRes && wechatRes.openid) {
+			userRole.openid = wechatRes.openid
 
 			// 使用dataManager查询用户信息（从缓存读取）
 			const userData = await dataManager.getResidentByOpenid(userRole.openid)
