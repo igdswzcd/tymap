@@ -148,7 +148,6 @@ export async function insertMultipleTestResidents() {
 			})
 		})
 
-		console.log(`${building.name} 生成住户数量: ${buildingResidents.length}`)
 		testResidents.push(...buildingResidents)
 	})
 

@@ -6,7 +6,7 @@
       <scroll-view
         class="floor-door-scroll"
         scroll-y="true"
-        :show-scrollbar="true"
+        :show-scrollbar="false"
         :scroll-top="scrollTop"
         @scroll="onScroll"
       >
@@ -16,39 +16,61 @@
             :key="floor.floor"
             class="floor-row"
           >
-            <!-- 楼层标识 -->
-            <view class="floor-badge">
-              <text class="floor-number">{{ floor.floor }}F</text>
-            </view>
-
-            <!-- 门牌容器 -->
-            <view class="doors-row">
+            <!-- 左侧门牌 (45%) - 2号门 -->
+            <view class="door-section left-section">
               <view
-                v-for="door in floor.doors"
-                :key="door.door"
+                v-if="floor.doors[1]"
                 class="door-card"
                 :class="{
-                  'occupied': door.isOccupied,
-                  'available': !door.isOccupied,
-                  'selected': isSelected(floor.floor, door.door)
+                  'occupied': floor.doors[1].isOccupied,
+                  'available': !floor.doors[1].isOccupied,
+                  'selected': isSelected(floor.floor, floor.doors[1].door)
                 }"
-                @tap="onDoorTap(floor.floor, door)"
+                @tap="onDoorTap(floor.floor, floor.doors[1])"
               >
-                <!-- 门牌号 -->
                 <view class="door-header">
-                  <text class="door-id">{{ door.door }}号</text>
-                  <view class="status-dot" :class="door.isOccupied ? 'occupied' : 'available'"></view>
+                  <text class="door-id">{{ floor.floor }}{{ floor.doors[1].door === 2 ? '02' : '01' }}</text>
+                  <view class="status-dot" :class="floor.doors[1].isOccupied ? 'occupied' : 'available'"></view>
                 </view>
-
-                <!-- 住户信息 -->
-                <view v-if="door.isOccupied && door.resident" class="resident-info">
-                  <text class="resident-name">{{ door.resident.nickname || '住户' }}</text>
-                  <text v-if="door.resident.apply_status" class="resident-status">
-                    {{ getStatusText(door.resident.apply_status) }}
+                <view v-if="floor.doors[1].isOccupied && floor.doors[1].resident" class="resident-info">
+                  <text class="resident-name">{{ floor.doors[1].resident.nickname || '住户' }}</text>
+                  <text v-if="floor.doors[1].resident.apply_status" class="resident-status">
+                    {{ getStatusText(floor.doors[1].resident.apply_status) }}
                   </text>
                 </view>
+                <view v-else class="empty-status">
+                  <text class="empty-text">空置</text>
+                </view>
+              </view>
+            </view>
 
-                <!-- 空置状态 -->
+            <!-- 中间楼层号 (10%) -->
+            <view class="floor-center">
+              <text class="floor-display">{{ floor.floor }}F</text>
+            </view>
+
+            <!-- 右侧门牌 (45%) - 1号门 -->
+            <view class="door-section right-section">
+              <view
+                v-if="floor.doors[0]"
+                class="door-card"
+                :class="{
+                  'occupied': floor.doors[0].isOccupied,
+                  'available': !floor.doors[0].isOccupied,
+                  'selected': isSelected(floor.floor, floor.doors[0].door)
+                }"
+                @tap="onDoorTap(floor.floor, floor.doors[0])"
+              >
+                <view class="door-header">
+                  <text class="door-id">{{ floor.floor }}{{ floor.doors[0].door === 1 ? '01' : '02' }}</text>
+                  <view class="status-dot" :class="floor.doors[0].isOccupied ? 'occupied' : 'available'"></view>
+                </view>
+                <view v-if="floor.doors[0].isOccupied && floor.doors[0].resident" class="resident-info">
+                  <text class="resident-name">{{ floor.doors[0].resident.nickname || '住户' }}</text>
+                  <text v-if="floor.doors[0].resident.apply_status" class="resident-status">
+                    {{ getStatusText(floor.doors[0].resident.apply_status) }}
+                  </text>
+                </view>
                 <view v-else class="empty-status">
                   <text class="empty-text">空置</text>
                 </view>
@@ -65,6 +87,19 @@
       <view class="floor-indicator">
         <text class="indicator-text">{{ currentFloor || '-' }}楼</text>
       </view>
+
+      <!-- 门牌确认模态框 -->
+      <DoorModal
+        :visible="modalVisible"
+        :building-number="selectedDoorInfo.buildingNumber"
+        :unit-number="selectedDoorInfo.unitNumber"
+        :floor-number="selectedDoorInfo.floorNumber"
+        :door-number="selectedDoorInfo.doorNumber"
+        :is-occupied="selectedDoorInfo.isOccupied"
+        :existing-resident="selectedDoorInfo.existingResident"
+        @close="onModalClose"
+        @confirm="onModalConfirm"
+      />
     </view>
   </view>
 </template>
@@ -73,15 +108,16 @@
 import { ref, computed, onMounted } from 'vue'
 import dataManager from '@/utils/dataManager.js'
 import buildingManager from '@/utils/buildingManager.js'
+import DoorModal from './DoorModal.uvue'
 
 // Props
 const props = defineProps({
   buildingNumber: {
-    type: [Number, String],
+    type: Number,
     required: true
   },
   unitNumber: {
-    type: [Number, String],
+    type: Number,
     required: true
   }
 })
@@ -95,6 +131,17 @@ const selectedFloor = ref<number | null>(null)
 const selectedDoor = ref<any>(null)
 const scrollTop = ref(0) // 滚动位置
 const currentFloor = ref<number | null>(null) // 当前显示的楼层
+
+// Modal相关数据
+const modalVisible = ref(false) // 模态框显示状态
+const selectedDoorInfo = ref({ // 选中的门牌信息
+  buildingNumber: 0,
+  unitNumber: 0,
+  floorNumber: 0,
+  doorNumber: 0,
+  isOccupied: false,
+  existingResident: null
+})
 
 // 计算排序后的楼层数据（反向排序，1楼在底部）
 const sortedFloors = computed(() => {
@@ -172,7 +219,7 @@ const loadFloorDoorData = async () => {
 
     // 为所有楼层创建门牌数据
     const floorData = allFloors.map(floor => {
-      const doors = []
+      const doors: any[] = []
 
       // 每层固定2个门（1号、2号）
       for (let door = 1; door <= 2; door++) {
@@ -202,18 +249,73 @@ const loadFloorDoorData = async () => {
 }
 
 // 门牌点击事件
-const onDoorTap = (floor: number, door: any) => {
+const onDoorTap = async (floor: number, door: any) => {
   console.log('点击门牌:', floor, door)
 
   selectedFloor.value = floor
   selectedDoor.value = door
 
+  // 设置选中的门牌信息
+  selectedDoorInfo.value = {
+    buildingNumber: props.buildingNumber,
+    unitNumber: props.unitNumber,
+    floorNumber: floor,
+    doorNumber: door.door,
+    isOccupied: door.isOccupied,
+    existingResident: door.resident || null
+  }
+
+  // 打开Modal
+  modalVisible.value = true
+
+  // 仍然发送事件供父组件使用
   emit('doorTap', {
     floor: floor,
     door: door.door,
     isOccupied: door.isOccupied,
     resident: door.resident
   })
+}
+
+// Modal关闭事件
+const onModalClose = () => {
+  modalVisible.value = false
+  // 重置选中信息
+  selectedDoorInfo.value = {
+    buildingNumber: 0,
+    unitNumber: 0,
+    floorNumber: 0,
+    doorNumber: 0,
+    isOccupied: false,
+    existingResident: null
+  }
+}
+
+// Modal确认事件
+const onModalConfirm = async (result: any) => {
+  console.log('Modal确认:', result)
+
+  try {
+    // 关闭Modal
+    modalVisible.value = false
+
+    // 显示成功提示
+    uni.showToast({
+      title: result.message,
+      icon: 'success',
+      duration: 2000
+    })
+
+    // 刷新楼层数据
+    await loadFloorDoorData()
+
+  } catch (error) {
+    console.error('处理Modal确认失败:', error)
+    uni.showToast({
+      title: '操作失败',
+      icon: 'error'
+    })
+  }
 }
 
 // 关闭视图
@@ -261,91 +363,100 @@ onMounted(async () => {
 .floor-door-scroll {
   flex: 1;
   width: 100%;
+  position: relative;
+}
+
+/* 隐藏滚动条但保持滚动功能 */
+.floor-door-scroll ::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+  background: transparent;
+}
+
+.floor-door-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .scroll-container {
-  padding: 20rpx 0;
+  padding: 40rpx 0;
+  min-height: 100%;
 }
 
 /* 楼层行 */
 .floor-row {
   display: flex;
-  align-items: center;
-  min-height: 120rpx;
+  flex-direction: row;
+  align-items: stretch;
+  min-height: 140rpx;
   margin: 0 20rpx;
-  padding: 16rpx;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 20rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
-  backdrop-filter: blur(10rpx);
-  margin-bottom: 16rpx;
-  transition: all 0.3s ease;
+  margin-bottom: 20rpx;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 24rpx;
+  box-shadow: 0 6rpx 24rpx rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(16rpx);
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .floor-row:hover {
-  transform: translateY(-2rpx);
-  box-shadow: 0 8rpx 30rpx rgba(0, 0, 0, 0.12);
+  transform: translateY(-3rpx) scale(1.01);
+  box-shadow: 0 12rpx 40rpx rgba(0, 0, 0, 0.15);
 }
 
-/* 楼层标识 */
-.floor-badge {
-  width: 80rpx;
-  height: 80rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16rpx;
+/* 门牌区域 (左右各45%) */
+.door-section {
+  flex: 0 0 45%;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 20rpx;
-  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+  padding: 20rpx;
+  position: relative;
 }
 
-.floor-number {
-  font-size: 28rpx;
-  font-weight: 700;
-  color: #ffffff;
-  text-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.2);
-}
-
-/* 门牌行 */
-.doors-row {
-  flex: 1;
+/* 中间楼层号 (10%) */
+.floor-center {
+  flex: 0 0 10%;
   display: flex;
-  gap: 16rpx;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+}
+
+.floor-display {
+  font-size: 36rpx;
+  font-weight: 900;
+  color: #333;
+  text-shadow: 0 3rpx 6rpx rgba(0, 0, 0, 0.3);
+  letter-spacing: 2rpx;
+  line-height: 1;
+  position: relative;
+  z-index: 1;
 }
 
 /* 门牌卡片 */
 .door-card {
-  flex: 1;
+  width: 100%;
   background: #ffffff;
-  border-radius: 16rpx;
-  padding: 20rpx;
-  border: 2rpx solid #e9ecef;
-  transition: all 0.3s ease;
+  border-radius: 20rpx;
+  padding: 24rpx 20rpx;
+  border: 2rpx solid transparent;
+  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
   cursor: pointer;
   position: relative;
   overflow: hidden;
-}
-
-.door-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4rpx;
-  background: linear-gradient(90deg, #667eea, #764ba2);
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
 }
 
 .door-card:hover {
-  transform: translateY(-2rpx);
-  box-shadow: 0 6rpx 20rpx rgba(0, 0, 0, 0.1);
+  transform: translateY(-3rpx) scale(1.02);
+  box-shadow: 0 8rpx 25rpx rgba(0, 0, 0, 0.12);
 }
 
 .door-card:hover::before {
   opacity: 1;
+  transform: translateY(0);
 }
 
 .door-card.available {
@@ -353,20 +464,28 @@ onMounted(async () => {
   background: linear-gradient(135deg, #f8fff9 0%, #e8f5e8 100%);
 }
 
+.door-card.available::before {
+  background: linear-gradient(90deg, #28a745, #20c997);
+}
+
 .door-card.occupied {
   border-color: #6c757d;
   background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
 }
 
+.door-card.occupied::before {
+  background: linear-gradient(90deg, #007bff, #6610f2);
+}
+
 .door-card.selected {
   border-color: #007bff;
   background: linear-gradient(135deg, #e7f3ff 0%, #cce7ff 100%);
-  box-shadow: 0 8rpx 25rpx rgba(0, 123, 255, 0.3);
-  transform: scale(1.02);
+  box-shadow: 0 12rpx 30rpx rgba(0, 123, 255, 0.4);
+  transform: translateY(-3rpx) scale(1.03);
 }
 
 .door-card:active {
-  transform: scale(0.98);
+  transform: translateY(-1rpx) scale(0.99);
 }
 
 /* 门牌头部 */
@@ -442,7 +561,7 @@ onMounted(async () => {
 
 /* 底部占位 */
 .bottom-spacer {
-  height: 200rpx;
+  height: 20rpx;
 }
 
 /* 楼层指示器 */

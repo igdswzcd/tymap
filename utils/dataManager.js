@@ -387,7 +387,71 @@ class DataManager {
 		console.log('各栋楼door数量:', buildingDoorCounts)
 		return buildingDoorCounts
 	}
+	// 添加或更新住户信息
+	async addOrUpdateResident(residentData) {
+		try {
+			if (!this.isInitialized) {
+				await this.init()
+			}
+	
+			const cloudInstance = this.uniCloud || uniCloud
+			if (!cloudInstance) {
+				throw new Error('uniCloud未初始化或不可用')
+			}
+	
+			const db = cloudInstance.databaseForJQL()
+			if (!db) {
+				throw new Error('无法创建数据库连接')
+			}
+	
+			if (residentData.action === 'update' && residentData.id) {
+				// 更新现有记录
+				const { id, action, ...updateData } = residentData
+	
+				const result = await db.collection('residents')
+					.doc(id)
+					.update({
+						...updateData,
+						update_time: new Date().toISOString()
+					})
+	
+				console.log('更新住户信息成功:', result)
+	
+				// 更新本地缓存
+				if (this.data) {
+					const index = this.data.findIndex(r => r.id === id)
+					if (index !== -1) {
+						this.data[index] = { ...this.data[index], ...updateData }
+					}
+				}
+	
+				return result
+			} else {
+				// 创建新记录
+				const { action, ...createData } = residentData
+	
+				const result = await db.collection('residents')
+					.add(createData)
+	
+				console.log('创建住户信息成功:', result)
+	
+				// 更新本地缓存
+				if (this.data) {
+					this.data.push({
+						...createData,
+						id: result.id
+					})
+				}
+	
+				return result
+			}
+		} catch (error) {
+			console.error('住户信息操作失败:', error)
+			throw error
+		}
+	}
 }
+
 
 // 创建单例实例
 const dataManager = new DataManager()

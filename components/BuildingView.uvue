@@ -116,7 +116,7 @@ import Dice3D from '@/components/Dice3D.uvue'
 import BuildingUnitView from '@/components/BuildingUnitView.uvue'
 import FloorDoorView from '@/components/FloorDoorView.uvue'
 import { insertMultipleTestResidents } from '@/utils/mockData.uts'
-import checkinStore from '@/store/index.uts'
+import { checkinStore } from '@/store/index.uts'
 
 // 定义事件
 const emit = defineEmits(['buildingTap'])

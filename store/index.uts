@@ -223,7 +223,7 @@ export const checkinStore = {
 			default:
 				return 1 // 默认显示返回按钮
 		}
-	}
+	},
 
 	// 获取按钮文本
 	getButtonText(): string {
@@ -250,7 +250,4 @@ export const checkinStore = {
 }
 
 // 导出类型
-export type { CheckinState, BreadcrumbItem }
-
-// 默认导出
-export default checkinStore
+export type { CheckinState }

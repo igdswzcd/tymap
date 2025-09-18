@@ -31,7 +31,7 @@ import buildingManager from '@/utils/buildingManager.js'
 // Props
 const props = defineProps({
   buildingNumber: {
-    type: [Number, String],
+    type: Number,
     required: true
   }
 })
@@ -47,7 +47,7 @@ const getUnitsContainerClass = () => {
   const unitCount = units.value.length
   const hasVillaUnits = props.buildingNumber > 10
 
-  let classes = []
+  let classes: string[] = []
   if (unitCount === 2) {
     classes.push('units-2')
   } else if (unitCount === 3) {

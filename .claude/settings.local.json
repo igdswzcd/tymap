@@ -6,7 +6,8 @@
       "Read(//d/sakana/uniapp/ty-map/**)",
       "Bash(find:*)",
       "WebFetch(domain:uniapp.dcloud.net.cn)",
-      "WebSearch"
+      "WebSearch",
+      "mcp__context7__resolve-library-id"
     ],
     "deny": [],
     "ask": []

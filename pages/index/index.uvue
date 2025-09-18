@@ -130,7 +130,7 @@ const userRole = reactive({
 })
 
 // 入住按钮文本 - 使用全局状态管理
-const checkinButtonText = computed(() => checkinStore.getButtonText())
+const checkinButtonText = computed(() => checkinStore?.getButtonText())
 
 // breadcrumb导航 - 使用全局状态管理
 const checkinBreadcrumb = computed(() => checkinStore.getBreadcrumb())
@@ -474,8 +474,8 @@ onMounted(async () => {
 .container {
 	--gradient-default-s: #00F260;
 	--gradient-default-e: #0575E6;
-	--gradient-level1-s: #00F260;
-	--gradient-level1-e: #0575E6;
+	--gradient-level1-s: #373B44;
+	--gradient-level1-e: #4286f4;
 	--gradient-level2-s: #F1F2B5;
 	--gradient-level2-e: #135058;
 }
